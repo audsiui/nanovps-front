@@ -1,10 +1,24 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import {
+  getAccessToken,
+  getRefreshToken,
+  saveTokens,
+  clearTokens,
+  isTokenExpiringSoon,
+} from './token';
 
 // 统一响应格式
 export interface ApiResponse<T> {
   code: number;
   message: string;
   data: T;
+}
+
+// 刷新 token 的响应
+interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
 }
 
 // 创建 axios 实例
@@ -18,11 +32,74 @@ const api: AxiosInstance = axios.create({
   validateStatus: () => true,
 });
 
+// 刷新 token 的 Promise 锁（防止并发刷新）
+let refreshPromise: Promise<void> | null = null;
+
+// 执行刷新 token
+const doRefreshToken = async (): Promise<void> => {
+  const refreshToken = getRefreshToken();
+
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    const response = await axios.post<ApiResponse<RefreshTokenResponse>>(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/refresh`,
+      { refreshToken }
+    );
+
+    const data = response.data;
+
+    if (data.code !== 200) {
+      throw new Error(data.message || '刷新 token 失败');
+    }
+
+    // 保存新的 token
+    saveTokens({
+      accessToken: data.data.accessToken,
+      refreshToken: data.data.refreshToken,
+      expiresIn: data.data.expiresIn,
+    });
+  } catch (error) {
+    // 刷新失败，清除所有 token 并跳转登录
+    clearTokens();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth';
+    }
+    throw error;
+  }
+};
+
+// 获取刷新 Promise（确保并发请求只刷新一次）
+const getRefreshPromise = (): Promise<void> => {
+  if (!refreshPromise) {
+    refreshPromise = doRefreshToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
 // 请求拦截器
 api.interceptors.request.use(
-  (config) => {
-    // 从 localStorage 获取 token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  async (config) => {
+    // 跳过刷新 token 请求本身
+    if (config.url?.includes('/auth/refresh')) {
+      return config;
+    }
+
+    // 检查 token 是否即将过期，需要刷新
+    if (isTokenExpiringSoon(5)) {
+      try {
+        await getRefreshPromise();
+      } catch {
+        // 刷新失败，让请求继续（会返回 401，由响应拦截器处理）
+      }
+    }
+
+    // 获取最新的 accessToken
+    const token = getAccessToken();
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -48,8 +125,8 @@ api.interceptors.response.use(
         return response;
       case 401:
         // 未授权，清除 token 并跳转到登录页
+        clearTokens();
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
           window.location.href = '/auth';
         }
         throw new Error(data.message || '请先登录');
@@ -69,12 +146,39 @@ api.interceptors.response.use(
         throw new Error(data.message || '请求失败');
     }
   },
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     // 网络错误或请求未发出
     if (!error.response) {
       console.error('网络错误，请检查网络连接');
       throw new Error('网络错误，请检查网络连接');
     }
+
+    // 401 错误尝试刷新 token（兜底机制）
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        await getRefreshPromise();
+        const newToken = getAccessToken();
+
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        }
+
+        // 重试原请求
+        return api(originalRequest);
+      } catch (refreshError) {
+        // 刷新失败，清除 token 并跳转
+        clearTokens();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth';
+        }
+        throw refreshError;
+      }
+    }
+
     throw error;
   }
 );

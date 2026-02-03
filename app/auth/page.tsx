@@ -1,42 +1,84 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Loader2,
-  Github,
   Mail,
   Lock,
   ArrowLeft,
-  Chrome, // 用作 Google 图标的替代
 } from 'lucide-react';
 import Link from 'next/link';
+import { useLogin, useRegister } from '@/lib/requests/auth';
+import { saveTokens } from '@/lib/token';
+import { toast } from 'sonner';
 
 export default function AuthPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('login');
 
-  // 模拟登录/注册处理
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 登录 mutation
+  const loginMutation = useLogin({
+    onSuccess: (data) => {
+      // 保存 token 信息
+      saveTokens({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn,
+      });
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      toast.success('登录成功');
+      router.push('/dashboard');
+    },
+    onError: (error) => {
+      toast.error(error.message || '登录失败');
+    },
+  });
+
+  // 注册 mutation
+  const registerMutation = useRegister({
+    onSuccess: () => {
+      toast.success('注册成功，请登录');
+      // 切换到登录标签页
+      setActiveTab('login');
+    },
+    onError: (error) => {
+      toast.error(error.message || '注册失败');
+    },
+  });
+
+  // 登录表单提交
+  const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
-    // 模拟网络请求
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    const formData = new FormData(e.currentTarget);
+    loginMutation.mutate({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+    });
+  };
+
+  // 注册表单提交
+  const handleRegister = async (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    registerMutation.mutate({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+    });
   };
 
   return (
@@ -47,13 +89,13 @@ export default function AuthPage() {
         <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[100px]" />
         <div className="absolute bottom-0 left-[20%] w-[30%] h-[30%] rounded-full bg-muted/20 blur-[80px]" />
       </div>
-      
+
       {/* 网格背景 */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.15] pointer-events-none" />
 
       {/* --- 返回首页按钮 --- */}
-      <Link 
-        href="/" 
+      <Link
+        href="/"
         className="absolute top-8 left-8 flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors z-20"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -62,7 +104,6 @@ export default function AuthPage() {
 
       {/* --- 主体卡片 --- */}
       <div className="relative z-10 w-full max-w-md px-4">
-        
         {/* Logo 展示 */}
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2 group cursor-default">
@@ -80,7 +121,7 @@ export default function AuthPage() {
           </Link>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-4 h-12 bg-muted/50 backdrop-blur-sm p-1">
             <TabsTrigger value="login" className="text-sm font-medium transition-all duration-300">登录</TabsTrigger>
             <TabsTrigger value="register" className="text-sm font-medium transition-all duration-300">注册账户</TabsTrigger>
@@ -96,15 +137,16 @@ export default function AuthPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email-login">邮箱地址</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="email-login" 
-                        placeholder="name@example.com" 
-                        type="email" 
+                      <Input
+                        id="email-login"
+                        name="email"
+                        placeholder="name@example.com"
+                        type="email"
                         className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
                         required
                       />
@@ -113,8 +155,8 @@ export default function AuthPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password-login">密码</Label>
-                      <Link 
-                        href="#" 
+                      <Link
+                        href="#"
                         className="text-xs text-primary hover:text-primary/80 underline-offset-4 hover:underline"
                       >
                         忘记密码?
@@ -122,16 +164,17 @@ export default function AuthPage() {
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="password-login" 
-                        type="password" 
+                      <Input
+                        id="password-login"
+                        name="password"
+                        type="password"
                         className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
                         required
                       />
                     </div>
                   </div>
-                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={isLoading}>
-                    {isLoading ? (
+                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={loginMutation.isPending}>
+                    {loginMutation.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       "立即登录"
@@ -139,27 +182,6 @@ export default function AuthPage() {
                   </Button>
                 </form>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border/50" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      或者通过以下方式
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="border-border/50 hover:bg-muted/50 hover:border-primary/30 transition-all">
-                    <Github className="mr-2 h-4 w-4" />
-                    Github
-                  </Button>
-                  <Button variant="outline" className="border-border/50 hover:bg-muted/50 hover:border-primary/30 transition-all">
-                    <Chrome className="mr-2 h-4 w-4" />
-                    Google
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -174,15 +196,16 @@ export default function AuthPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email-register">邮箱地址</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="email-register" 
-                        placeholder="name@example.com" 
-                        type="email" 
+                      <Input
+                        id="email-register"
+                        name="email"
+                        placeholder="name@example.com"
+                        type="email"
                         className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
                         required
                       />
@@ -192,21 +215,22 @@ export default function AuthPage() {
                     <Label htmlFor="password-register">设置密码</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="password-register" 
-                        type="password" 
+                      <Input
+                        id="password-register"
+                        name="password"
+                        type="password"
                         placeholder="至少 8 位字符"
                         className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
                         required
                       />
                     </div>
                   </div>
-                  
+
                   {/* 服务条款勾选 */}
                   <div className="flex items-center space-x-2 pt-2">
                     <Checkbox id="terms" required />
-                    <Label 
-                      htmlFor="terms" 
+                    <Label
+                      htmlFor="terms"
                       className="text-sm text-muted-foreground font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                       我已阅读并同意{' '}
@@ -220,36 +244,14 @@ export default function AuthPage() {
                     </Label>
                   </div>
 
-                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={isLoading}>
-                    {isLoading ? (
+                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={registerMutation.isPending}>
+                    {registerMutation.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       "创建账户"
                     )}
                   </Button>
                 </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border/50" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      第三方账号注册
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="border-border/50 hover:bg-muted/50 hover:border-primary/30 transition-all">
-                    <Github className="mr-2 h-4 w-4" />
-                    Github
-                  </Button>
-                  <Button variant="outline" className="border-border/50 hover:bg-muted/50 hover:border-primary/30 transition-all">
-                    <Chrome className="mr-2 h-4 w-4" />
-                    Google
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
