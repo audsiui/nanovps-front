@@ -28,8 +28,6 @@ const api: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // 允许返回所有 HTTP 状态码，不自动抛出错误
-  validateStatus: () => true,
 });
 
 // 刷新 token 的 Promise 锁（防止并发刷新）
@@ -117,19 +115,12 @@ api.interceptors.response.use(
   (response: AxiosResponse) => {
     const data = response.data as ApiResponse<unknown>;
 
-    // 根据业务状态码处理
+    // 根据业务状态码处理（HTTP 2xx 但业务可能返回错误码）
     switch (data.code) {
       case 200:
       case 201:
         // 成功响应，返回原始 response
         return response;
-      case 401:
-        // 未授权，清除 token 并跳转到登录页
-        clearTokens();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/auth';
-        }
-        throw new Error(data.message || '请先登录');
       case 403:
         throw new Error(data.message || '权限不足');
       case 404:
@@ -146,17 +137,19 @@ api.interceptors.response.use(
         throw new Error(data.message || '请求失败');
     }
   },
-  async (error: AxiosError) => {
+  async (error: AxiosError<ApiResponse<unknown>>) => {
     // 网络错误或请求未发出
     if (!error.response) {
       console.error('网络错误，请检查网络连接');
       throw new Error('网络错误，请检查网络连接');
     }
 
-    // 401 错误尝试刷新 token（兜底机制）
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    const status = error.response.status;
+    const data = error.response.data;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // HTTP 401 或业务状态码 401：尝试刷新 token
+    if ((status === 401 || data?.code === 401) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -175,11 +168,21 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           window.location.href = '/auth';
         }
-        throw refreshError;
+        throw new Error(data?.message || '登录已过期，请重新登录');
       }
     }
 
-    throw error;
+    // 其他 HTTP 错误，根据状态码提示
+    switch (status) {
+      case 403:
+        throw new Error(data?.message || '权限不足');
+      case 404:
+        throw new Error(data?.message || '资源不存在');
+      case 500:
+        throw new Error(data?.message || '服务器内部错误');
+      default:
+        throw new Error(data?.message || `请求失败 (${status})`);
+    }
   }
 );
 
