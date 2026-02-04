@@ -46,7 +46,6 @@ const menuItems = [
   { icon: ShoppingCart, label: '订单管理', href: '/admin/dashboard/orders' },
   { icon: CreditCard, label: '财务管理', href: '/admin/dashboard/finance' },
   { icon: Ticket, label: '工单管理', href: '/admin/dashboard/tickets' },
-  { icon: Shield, label: '权限管理', href: '/admin/dashboard/roles' },
   { icon: BookType, label: '字典管理', href: '/admin/dashboard/dictionaries' },
   { icon: Settings, label: '系统设置', href: '/admin/dashboard/settings' },
 ];
