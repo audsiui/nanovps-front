@@ -3,12 +3,14 @@
 import {
   MoreHorizontal,
   Cpu,
-  HardDrive,
+  MemoryStick,
   Power,
   PowerOff,
   Trash2,
   Pencil,
   Eye,
+  Globe,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,41 +30,54 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Server } from './types';
+import { Node } from './types';
 
-interface ServerTableProps {
-  servers: Server[];
-  onViewDetail: (server: Server) => void;
-  onToggleEnabled: (id: string) => void;
-  onDelete: (id: string) => void;
+interface NodeTableProps {
+  nodes: Node[];
+  onViewDetail: (node: Node) => void;
+  onToggleStatus: (id: number) => void;
+  onDelete: (id: number) => void;
 }
 
 export function ServerTable({
-  servers,
+  nodes,
   onViewDetail,
-  onToggleEnabled,
+  onToggleStatus,
   onDelete,
-}: ServerTableProps) {
-  const getStatusBadge = (status: string, enabled: boolean) => {
-    if (!enabled) {
-      return <Badge variant="secondary">已禁用</Badge>;
-    }
+}: NodeTableProps) {
+  const getStatusBadge = (status: number) => {
     switch (status) {
-      case 'online':
+      case 1:
         return <Badge className="bg-green-500 hover:bg-green-600">在线</Badge>;
-      case 'offline':
+      case 0:
         return <Badge variant="destructive">离线</Badge>;
-      case 'maintenance':
-        return <Badge variant="outline">维护中</Badge>;
       default:
-        return <Badge variant="secondary">未知</Badge>;
+        return <Badge variant="secondary">维护中</Badge>;
     }
   };
 
-  const getUsageColor = (usage: number) => {
-    if (usage >= 80) return 'text-red-500';
-    if (usage >= 60) return 'text-yellow-500';
-    return 'text-green-500';
+  const formatLastHeartbeat = (lastHeartbeat: string | null) => {
+    if (!lastHeartbeat) return '从未上报';
+    const date = new Date(lastHeartbeat);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}小时前`;
+    return `${Math.floor(hours / 24)}天前`;
+  };
+
+  const getHeartbeatColor = (lastHeartbeat: string | null) => {
+    if (!lastHeartbeat) return 'text-muted-foreground';
+    const date = new Date(lastHeartbeat);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 5) return 'text-green-500';
+    if (minutes < 30) return 'text-yellow-500';
+    return 'text-red-500';
   };
 
   return (
@@ -70,85 +85,71 @@ export function ServerTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>服务器</TableHead>
-            <TableHead>区域/数据中心</TableHead>
-            <TableHead>配置</TableHead>
-            <TableHead>资源使用</TableHead>
-            <TableHead>虚拟机</TableHead>
+            <TableHead>节点名称</TableHead>
+            <TableHead>网络地址</TableHead>
+            <TableHead>资源配置</TableHead>
+            <TableHead>心跳状态</TableHead>
             <TableHead>状态</TableHead>
             <TableHead className="text-right">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {servers.length === 0 ? (
+          {nodes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground h-32">
-                暂无服务器数据
+              <TableCell colSpan={6} className="text-center text-muted-foreground h-32">
+                暂无节点数据
               </TableCell>
             </TableRow>
           ) : (
-            servers.map((server) => (
-              <TableRow key={server.id}>
+            nodes.map((node) => (
+              <TableRow key={node.id}>
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="font-medium">{server.name}</span>
+                    <span className="font-medium">{node.name}</span>
                     <span className="text-xs text-muted-foreground">
-                      {server.publicIp}
+                      ID: {node.id}
                     </span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-col">
-                    <span>{server.region}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {server.datacenter}
-                    </span>
+                  <div className="flex flex-col text-sm">
+                    {node.ipv4 && (
+                      <div className="flex items-center gap-1">
+                        <Globe className="h-3 w-3 text-muted-foreground" />
+                        <span>{node.ipv4}</span>
+                      </div>
+                    )}
+                    {node.ipv6 && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {node.ipv6}
+                      </span>
+                    )}
+                    {!node.ipv4 && !node.ipv6 && (
+                      <span className="text-muted-foreground">未配置</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col text-xs">
-                    <span>{server.cpu}</span>
-                    <span className="text-muted-foreground">
-                      {server.cpuCores}核 · {server.memory}GB · {server.disk}GB {server.diskType}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {server.enabled ? (
-                    <div className="flex flex-col gap-1 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Cpu className="h-3 w-3" />
-                        <span className={getUsageColor(server.cpuUsage)}>
-                          {server.cpuUsage}%
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <HardDrive className="h-3 w-3" />
-                        <span className={getUsageColor(server.memoryUsage)}>
-                          {server.memoryUsage}%
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <Cpu className="h-3 w-3 text-muted-foreground" />
+                      <span>{node.totalCpu ?? '-'} 核</span>
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>
-                      {server.currentVms} / {server.maxVms}
-                    </span>
-                    <div className="w-20 h-1 bg-muted rounded-full mt-1">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{
-                          width: `${(server.currentVms / server.maxVms) * 100}%`,
-                        }}
-                      />
+                    <div className="flex items-center gap-1">
+                      <MemoryStick className="h-3 w-3 text-muted-foreground" />
+                      <span>
+                        {node.totalRamMb ? `${Math.round(node.totalRamMb / 1024)} GB` : '-'}
+                      </span>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{getStatusBadge(server.status, server.enabled)}</TableCell>
+                <TableCell>
+                  <div className={`flex items-center gap-1 text-xs ${getHeartbeatColor(node.lastHeartbeat)}`}>
+                    <Clock className="h-3 w-3" />
+                    <span>{formatLastHeartbeat(node.lastHeartbeat)}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{getStatusBadge(node.status)}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -159,7 +160,7 @@ export function ServerTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>操作</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onViewDetail(server)}>
+                      <DropdownMenuItem onClick={() => onViewDetail(node)}>
                         <Eye className="mr-2 h-4 w-4" />
                         查看详情
                       </DropdownMenuItem>
@@ -168,25 +169,23 @@ export function ServerTable({
                         编辑配置
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onToggleEnabled(server.id)}
-                      >
-                        {server.enabled ? (
+                      <DropdownMenuItem onClick={() => onToggleStatus(node.id)}>
+                        {node.status === 1 ? (
                           <>
                             <PowerOff className="mr-2 h-4 w-4" />
-                            禁用服务器
+                            下线维护
                           </>
                         ) : (
                           <>
                             <Power className="mr-2 h-4 w-4" />
-                            启用服务器
+                            上线节点
                           </>
                         )}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
-                        onClick={() => onDelete(server.id)}
+                        onClick={() => onDelete(node.id)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         删除

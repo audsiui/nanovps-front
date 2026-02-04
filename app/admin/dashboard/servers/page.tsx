@@ -25,59 +25,67 @@ import {
   ServerTable,
   ServerDetailDialog,
   AddServerForm,
-  Server,
+  Node,
 } from './components';
 
 export default function ServersPage() {
-  const [servers, setServers] = useState<Server[]>(mockServers);
+  const [nodes, setNodes] = useState<Node[]>(mockServers);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   // 筛选逻辑
-  const filteredServers = servers.filter((server) => {
+  const filteredNodes = nodes.filter((node) => {
     const matchesSearch =
-      server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      server.publicIp.includes(searchQuery) ||
-      server.internalIp.includes(searchQuery);
-    const matchesRegion = regionFilter === 'all' || server.region === regionFilter;
-    const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
+      node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (node.ipv4?.includes(searchQuery) ?? false) ||
+      (node.ipv6?.includes(searchQuery) ?? false);
+    const matchesRegion =
+      regionFilter === 'all' ||
+      (regionFilter === '1' && node.regionId === 1) ||
+      (regionFilter === '2' && node.regionId === 2) ||
+      (regionFilter === '3' && node.regionId === 3) ||
+      (regionFilter === '4' && node.regionId === 4);
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'online' && node.status === 1) ||
+      (statusFilter === 'offline' && node.status === 0);
     return matchesSearch && matchesRegion && matchesStatus;
   });
 
   // 处理查看详情
-  const handleViewDetail = (server: Server) => {
-    setSelectedServer(server);
+  const handleViewDetail = (node: Node) => {
+    setSelectedNode(node);
     setIsDetailDialogOpen(true);
   };
 
-  // 处理切换启用状态
-  const handleToggleEnabled = (id: string) => {
-    setServers(
-      servers.map((s) =>
-        s.id === id ? { ...s, enabled: !s.enabled } : s
+  // 处理切换状态 (0=离线, 1=在线)
+  const handleToggleStatus = (id: number) => {
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.id === id ? { ...n, status: n.status === 1 ? 0 : 1 } : n
       )
     );
   };
 
   // 处理删除
-  const handleDelete = (id: string) => {
-    setServers(servers.filter((s) => s.id !== id));
+  const handleDelete = (id: number) => {
+    setNodes((prev) => prev.filter((n) => n.id !== id));
   };
 
   return (
     <div className="space-y-4">
-      <ServerStats servers={servers} />
+      <ServerStats nodes={nodes} />
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索服务器名称或IP..."
+              placeholder="搜索节点名称或IP..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
@@ -89,10 +97,10 @@ export default function ServersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部区域</SelectItem>
-              <SelectItem value="香港">香港</SelectItem>
-              <SelectItem value="日本">日本</SelectItem>
-              <SelectItem value="新加坡">新加坡</SelectItem>
-              <SelectItem value="美国">美国</SelectItem>
+              <SelectItem value="1">香港</SelectItem>
+              <SelectItem value="2">日本</SelectItem>
+              <SelectItem value="3">新加坡</SelectItem>
+              <SelectItem value="4">美国</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -103,7 +111,6 @@ export default function ServersPage() {
               <SelectItem value="all">全部状态</SelectItem>
               <SelectItem value="online">在线</SelectItem>
               <SelectItem value="offline">离线</SelectItem>
-              <SelectItem value="maintenance">维护中</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -111,14 +118,14 @@ export default function ServersPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              上架服务器
+              添加节点
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className=" max-h-[90vh]">
             <DialogHeader>
-              <DialogTitle>上架新服务器</DialogTitle>
+              <DialogTitle>添加新节点</DialogTitle>
               <DialogDescription>
-                填写宿主机信息以将其添加到系统中
+                填写节点信息以将其添加到系统中
               </DialogDescription>
             </DialogHeader>
             <AddServerForm onSuccess={() => setIsAddDialogOpen(false)} />
@@ -127,14 +134,14 @@ export default function ServersPage() {
       </div>
 
       <ServerTable
-        servers={filteredServers}
+        nodes={filteredNodes}
         onViewDetail={handleViewDetail}
-        onToggleEnabled={handleToggleEnabled}
+        onToggleStatus={handleToggleStatus}
         onDelete={handleDelete}
       />
 
       <ServerDetailDialog
-        server={selectedServer}
+        node={selectedNode}
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
       />
