@@ -83,7 +83,7 @@ export function UserTable({
   };
 
   return (
-    <div className="rounded-md border p-2" >
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -196,6 +196,6 @@ export function UserTable({
           )}
         </TableBody>
       </Table>
-    </div>
+    
   );
 }

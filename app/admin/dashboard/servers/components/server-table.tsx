@@ -91,7 +91,7 @@ export function ServerTable({
   };
 
   return (
-    <div className="rounded-md border">
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -213,6 +213,6 @@ export function ServerTable({
           )}
         </TableBody>
       </Table>
-    </div>
+
   );
 }

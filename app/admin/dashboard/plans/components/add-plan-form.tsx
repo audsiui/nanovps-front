@@ -7,13 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -27,14 +20,12 @@ import {
 const planSchema = z.object({
   name: z.string().min(1, '请输入套餐名称').max(50, '名称最多50个字符'),
   cpu: z.number().min(1, 'CPU至少1核'),
-  memory: z.number().min(512, '内存至少512MB'),
-  disk: z.number().min(5, '硬盘至少5GB'),
-  traffic: z.number().nullable().optional(),
-  bandwidth: z.number().nullable().optional(),
-  ports: z.number().min(1, '至少1个端口'),
-  description: z.string().optional(),
-  status: z.number().default(1),
-  sortOrder: z.number().default(0),
+  ramMb: z.number().min(512, '内存至少512MB'),
+  diskGb: z.number().min(5, '硬盘至少5GB'),
+  trafficGb: z.number().nullable().optional(),
+  bandwidthMbps: z.number().nullable().optional(),
+  portCount: z.number().nullable().optional(),
+  remark: z.string().optional(),
 });
 
 type PlanSchemaType = z.infer<typeof planSchema>;
@@ -49,55 +40,42 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
     defaultValues: {
       name: '',
       cpu: 1,
-      memory: 1024,
-      disk: 20,
-      traffic: 500,
-      bandwidth: 100,
-      ports: 3,
-      description: '',
-      status: 1,
-      sortOrder: 0,
+      ramMb: 1024,
+      diskGb: 20,
+      trafficGb: 500,
+      bandwidthMbps: 100,
+      portCount: 3,
+      remark: '',
     },
   });
 
   const onSubmit = (data: PlanSchemaType) => {
-    console.log('Submit plan data:', data);
-    // TODO: 调用 API 创建套餐
+    console.log('Submit plan template data:', data);
+    // TODO: 调用 API 创建套餐模板
     onSuccess();
   };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
       <FieldGroup className="gap-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Field data-invalid={!!form.formState.errors.name}>
-            <FieldLabel>
-              套餐名称 <span className="text-destructive">*</span>
-            </FieldLabel>
-            <Input
-              placeholder="例如：入门版 - 1C1G"
-              {...form.register('name')}
-            />
-            {form.formState.errors.name && (
-              <FieldError errors={[form.formState.errors.name]} />
-            )}
-          </Field>
-
-          <Field data-invalid={!!form.formState.errors.sortOrder}>
-            <FieldLabel>排序权重</FieldLabel>
-            <Input
-              type="number"
-              placeholder="数字越小越靠前"
-              {...form.register('sortOrder', { valueAsNumber: true })}
-            />
-          </Field>
-        </div>
+        <Field data-invalid={!!form.formState.errors.name}>
+          <FieldLabel>
+            套餐名称 <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            placeholder="例如：入门版 - 1C1G"
+            {...form.register('name')}
+          />
+          {form.formState.errors.name && (
+            <FieldError errors={[form.formState.errors.name]} />
+          )}
+        </Field>
 
         <Field>
-          <FieldLabel>套餐描述</FieldLabel>
+          <FieldLabel>套餐备注</FieldLabel>
           <Textarea
             placeholder="套餐的简短描述..."
-            {...form.register('description')}
+            {...form.register('remark')}
           />
         </Field>
 
@@ -116,7 +94,7 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
             )}
           </Field>
 
-          <Field data-invalid={!!form.formState.errors.memory}>
+          <Field data-invalid={!!form.formState.errors.ramMb}>
             <FieldLabel>
               内存 (MB) <span className="text-destructive">*</span>
             </FieldLabel>
@@ -124,24 +102,24 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
               type="number"
               min={512}
               step={512}
-              {...form.register('memory', { valueAsNumber: true })}
+              {...form.register('ramMb', { valueAsNumber: true })}
             />
-            {form.formState.errors.memory && (
-              <FieldError errors={[form.formState.errors.memory]} />
+            {form.formState.errors.ramMb && (
+              <FieldError errors={[form.formState.errors.ramMb]} />
             )}
           </Field>
 
-          <Field data-invalid={!!form.formState.errors.disk}>
+          <Field data-invalid={!!form.formState.errors.diskGb}>
             <FieldLabel>
               硬盘 (GB) <span className="text-destructive">*</span>
             </FieldLabel>
             <Input
               type="number"
               min={5}
-              {...form.register('disk', { valueAsNumber: true })}
+              {...form.register('diskGb', { valueAsNumber: true })}
             />
-            {form.formState.errors.disk && (
-              <FieldError errors={[form.formState.errors.disk]} />
+            {form.formState.errors.diskGb && (
+              <FieldError errors={[form.formState.errors.diskGb]} />
             )}
           </Field>
         </div>
@@ -153,7 +131,7 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
               type="number"
               min={0}
               placeholder="留空表示不限"
-              {...form.register('traffic', { valueAsNumber: true, setValueAs: (v) => v === '' ? null : parseInt(v) })}
+              {...form.register('trafficGb', { valueAsNumber: true, setValueAs: (v) => v === '' ? null : parseInt(v) })}
             />
           </Field>
 
@@ -163,47 +141,27 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
               type="number"
               min={0}
               placeholder="留空表示不限"
-              {...form.register('bandwidth', { valueAsNumber: true, setValueAs: (v) => v === '' ? null : parseInt(v) })}
+              {...form.register('bandwidthMbps', { valueAsNumber: true, setValueAs: (v) => v === '' ? null : parseInt(v) })}
             />
           </Field>
 
-          <Field data-invalid={!!form.formState.errors.ports}>
-            <FieldLabel>
-              端口数量 <span className="text-destructive">*</span>
-            </FieldLabel>
+          <Field>
+            <FieldLabel>端口数量</FieldLabel>
             <Input
               type="number"
               min={1}
-              {...form.register('ports', { valueAsNumber: true })}
+              placeholder="留空表示不限"
+              {...form.register('portCount', { valueAsNumber: true, setValueAs: (v) => v === '' ? null : parseInt(v) })}
             />
-            {form.formState.errors.ports && (
-              <FieldError errors={[form.formState.errors.ports]} />
-            )}
           </Field>
         </div>
-
-        <Field>
-          <FieldLabel>初始状态</FieldLabel>
-          <Select
-            defaultValue="1"
-            onValueChange={(value) => form.setValue('status', parseInt(value))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">上架</SelectItem>
-              <SelectItem value="0">下架</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
       </FieldGroup>
 
       <DialogFooter className="mt-6">
         <Button type="button" variant="outline" onClick={onSuccess}>
           取消
         </Button>
-        <Button type="submit">创建套餐</Button>
+        <Button type="submit">创建模板</Button>
       </DialogFooter>
     </form>
   );
