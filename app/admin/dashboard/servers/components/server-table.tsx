@@ -11,7 +11,9 @@ import {
   Pencil,
   Globe,
   Clock,
+  Eye,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -169,6 +171,13 @@ export function ServerTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>操作</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <Link href={`/admin/dashboard/servers/detail?id=${node.id}`}>
+                        <DropdownMenuItem>
+                          <Eye className="mr-2 h-4 w-4" />
+                          查看详情
+                        </DropdownMenuItem>
+                      </Link>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => onEdit(node)}>
                         <Pencil className="mr-2 h-4 w-4" />

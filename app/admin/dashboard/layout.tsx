@@ -233,18 +233,6 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
       <div className="pt-16 lg:pl-60 min-h-screen">
         <main className="p-4 lg:p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Link href="/admin/dashboard" className="hover:text-foreground transition-colors">
-                首页
-              </Link>
-              <span className="text-border">/</span>
-            </nav>
-            <h1 className="text-lg font-medium text-foreground">
-              {currentMenuItem?.label || '总览'}
-            </h1>
-          </div>
-
           {children}
         </main>
       </div>
