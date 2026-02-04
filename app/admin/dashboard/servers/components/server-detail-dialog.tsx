@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Node } from './types';
 
 interface NodeDetailDialogProps {
@@ -93,19 +94,49 @@ export function ServerDetailDialog({
                   <CardContent className="text-sm space-y-1">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">CPU</span>
-                      <span>{node.totalCpu ?? '-'} 核</span>
+                      <span>{node.totalCpu} 核</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">内存</span>
-                      <span>
-                        {node.totalRamMb
-                          ? `${Math.round(node.totalRamMb / 1024)} GB`
-                          : '-'}
-                      </span>
+                      <span>{Math.round(node.totalRamMb / 1024)} GB</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">硬盘配额</span>
+                      <span>{node.allocatableDiskGb} GB</span>
                     </div>
                   </CardContent>
                 </Card>
               </div>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">硬盘使用情况</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {(() => {
+                    const used = node.usedDiskGb || 0;
+                    const total = node.allocatableDiskGb;
+                    const percent = Math.round((used / total) * 100);
+                    const remaining = total - used;
+                    return (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">已使用</span>
+                          <span>{used} GB ({percent}%)</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">剩余可用</span>
+                          <span>{remaining} GB</span>
+                        </div>
+                        <Progress value={percent} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          共 {total} GB，已分配给实例 {used} GB
+                        </p>
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">节点信息</CardTitle>
@@ -117,7 +148,7 @@ export function ServerDetailDialog({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">区域 ID</span>
-                    <span>{node.regionId ?? '-'}</span>
+                    <span>{node.regionId}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">最后心跳</span>

@@ -2,16 +2,16 @@ export interface Node {
   id: number;
   name: string;
   agentToken: string;
-  ipv4: string | null;
-  ipv6: string | null;
-  totalCpu: number | null;
-  totalRamMb: number | null;
+  ipv4: string;
+  ipv6?: string;
+  totalCpu: number;
+  totalRamMb: number;
+  allocatableDiskGb: number;
+  /** 已使用硬盘容量(GB)，用于展示实例占用的空间 */
+  usedDiskGb?: number;
   lastHeartbeat: string | null;
   status: number;
-  regionId: number | null;
+  regionId: number;
   createdAt: string;
   updatedAt: string;
 }
-
-// 兼容旧代码的别名
-export type Server = Node;

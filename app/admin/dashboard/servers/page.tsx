@@ -23,8 +23,8 @@ import {
   mockServers,
   ServerStats,
   ServerTable,
-  ServerDetailDialog,
   AddServerForm,
+  EditServerForm,
   Node,
 } from './components';
 
@@ -34,7 +34,7 @@ export default function ServersPage() {
   const [regionFilter, setRegionFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   // 筛选逻辑
@@ -56,10 +56,19 @@ export default function ServersPage() {
     return matchesSearch && matchesRegion && matchesStatus;
   });
 
-  // 处理查看详情
-  const handleViewDetail = (node: Node) => {
+  // 处理编辑
+  const handleEdit = (node: Node) => {
     setSelectedNode(node);
-    setIsDetailDialogOpen(true);
+    setIsEditDialogOpen(true);
+  };
+
+  // 处理保存编辑
+  const handleSaveEdit = (updatedNode: Node) => {
+    setNodes((prev) =>
+      prev.map((n) => (n.id === updatedNode.id ? updatedNode : n))
+    );
+    setIsEditDialogOpen(false);
+    setSelectedNode(null);
   };
 
   // 处理切换状态 (0=离线, 1=在线)
@@ -121,7 +130,7 @@ export default function ServersPage() {
               添加节点
             </Button>
           </DialogTrigger>
-          <DialogContent className=" max-h-[90vh]">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>添加新节点</DialogTitle>
               <DialogDescription>
@@ -135,16 +144,31 @@ export default function ServersPage() {
 
       <ServerTable
         nodes={filteredNodes}
-        onViewDetail={handleViewDetail}
+        onEdit={handleEdit}
         onToggleStatus={handleToggleStatus}
         onDelete={handleDelete}
       />
 
-      <ServerDetailDialog
-        node={selectedNode}
-        open={isDetailDialogOpen}
-        onOpenChange={setIsDetailDialogOpen}
-      />
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>编辑节点</DialogTitle>
+            <DialogDescription>
+              修改节点信息（硬盘容量不可修改）
+            </DialogDescription>
+          </DialogHeader>
+          {selectedNode && (
+            <EditServerForm
+              node={selectedNode}
+              onSuccess={handleSaveEdit}
+              onCancel={() => {
+                setIsEditDialogOpen(false);
+                setSelectedNode(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

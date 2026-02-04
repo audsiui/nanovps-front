@@ -4,11 +4,11 @@ import {
   MoreHorizontal,
   Cpu,
   MemoryStick,
+  HardDrive,
   Power,
   PowerOff,
   Trash2,
   Pencil,
-  Eye,
   Globe,
   Clock,
 } from 'lucide-react';
@@ -34,14 +34,14 @@ import { Node } from './types';
 
 interface NodeTableProps {
   nodes: Node[];
-  onViewDetail: (node: Node) => void;
+  onEdit: (node: Node) => void;
   onToggleStatus: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
 export function ServerTable({
   nodes,
-  onViewDetail,
+  onEdit,
   onToggleStatus,
   onDelete,
 }: NodeTableProps) {
@@ -78,6 +78,14 @@ export function ServerTable({
     if (minutes < 5) return 'text-green-500';
     if (minutes < 30) return 'text-yellow-500';
     return 'text-red-500';
+  };
+
+  const getDiskUsageText = (total: number, used?: number) => {
+    if (used === undefined || used === 0) {
+      return `${total} GB (空闲)`;
+    }
+    const percent = Math.round((used / total) * 100);
+    return `${used}/${total} GB (${percent}%)`;
   };
 
   return (
@@ -120,7 +128,7 @@ export function ServerTable({
                       </div>
                     )}
                     {node.ipv6 && (
-                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      <span className="text-xs text-muted-foreground truncate max-w-50">
                         {node.ipv6}
                       </span>
                     )}
@@ -133,13 +141,15 @@ export function ServerTable({
                   <div className="flex flex-col text-xs">
                     <div className="flex items-center gap-1">
                       <Cpu className="h-3 w-3 text-muted-foreground" />
-                      <span>{node.totalCpu ?? '-'} 核</span>
+                      <span>{node.totalCpu} 核</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <MemoryStick className="h-3 w-3 text-muted-foreground" />
-                      <span>
-                        {node.totalRamMb ? `${Math.round(node.totalRamMb / 1024)} GB` : '-'}
-                      </span>
+                      <span>{Math.round(node.totalRamMb / 1024)} GB</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <HardDrive className="h-3 w-3 text-muted-foreground" />
+                      <span>{getDiskUsageText(node.allocatableDiskGb, node.usedDiskGb)}</span>
                     </div>
                   </div>
                 </TableCell>
@@ -160,13 +170,9 @@ export function ServerTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>操作</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onViewDetail(node)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        查看详情
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(node)}>
                         <Pencil className="mr-2 h-4 w-4" />
-                        编辑配置
+                        编辑
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => onToggleStatus(node.id)}>

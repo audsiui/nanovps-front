@@ -19,96 +19,58 @@ import {
   Field,
   FieldLabel,
   FieldError,
-  FieldDescription,
   FieldGroup,
 } from '@/components/ui/field';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { Node } from './types';
 
-// 表单验证 Schema - 匹配 nodes 表结构
-const nodeSchema = z.object({
+// 编辑表单验证 Schema - 硬盘不可编辑
+const editNodeSchema = z.object({
   name: z.string().min(1, '请输入节点名称').max(50, '名称最多50个字符'),
   agentToken: z.string().min(1, '请输入 Agent Token').max(64, 'Token 最多64个字符'),
   ipv4: z.string().min(1, '请输入 IPv4 地址'),
   ipv6: z.string().optional(),
   totalCpu: z.number().min(1, 'CPU核心数至少为1'),
   totalRamMb: z.number().min(1, '内存至少为1MB'),
-  allocatableDiskGb: z.number().min(1, '硬盘容量至少为1GB'),
   regionId: z.number().min(1, '请选择所属区域'),
   status: z.number(),
 });
 
-type NodeFormData = z.infer<typeof nodeSchema>;
+type EditNodeFormData = z.infer<typeof editNodeSchema>;
 
-interface AddServerFormProps {
-  onSuccess: () => void;
+interface EditServerFormProps {
+  node: Node;
+  onSuccess: (updatedNode: Node) => void;
+  onCancel: () => void;
 }
 
-export function AddServerForm({ onSuccess }: AddServerFormProps) {
-  const [copied, setCopied] = useState(false);
-
-  const form = useForm<NodeFormData>({
-    resolver: zodResolver(nodeSchema),
+export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProps) {
+  const form = useForm<EditNodeFormData>({
+    resolver: zodResolver(editNodeSchema),
     defaultValues: {
-      name: '',
-      agentToken: '',
-      ipv4: '',
-      ipv6: '',
-      totalCpu: 4,
-      totalRamMb: 8192,
-      allocatableDiskGb: 100,
-      regionId: 0,
-      status: 1,
+      name: node.name,
+      agentToken: node.agentToken,
+      ipv4: node.ipv4,
+      ipv6: node.ipv6 || '',
+      totalCpu: node.totalCpu,
+      totalRamMb: node.totalRamMb,
+      regionId: node.regionId,
+      status: node.status,
     },
   });
 
-  const copyInstallCommand = () => {
-    navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/audsiui/nanovps-agent/main/install.sh | sudo bash');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const onSubmit = (data: NodeFormData) => {
-    console.log('Submit node data:', data);
-    // TODO: 调用 API 创建节点
-    onSuccess();
+  const onSubmit = (data: EditNodeFormData) => {
+    const updatedNode: Node = {
+      ...node,
+      ...data,
+      ipv6: data.ipv6 || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    onSuccess(updatedNode);
   };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
       <FieldGroup className="gap-4">
-        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900">
-          <Terminal className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <AlertTitle className="text-blue-800 dark:text-blue-300">如何获取 Agent Token？</AlertTitle>
-          <AlertDescription className="text-blue-700 dark:text-blue-400 text-sm mt-1">
-            <p className="mb-2">在目标服务器上运行以下命令安装 NanoVPS Agent，安装完成后会显示 Agent Token：</p>
-            <div className="flex items-center gap-2 bg-slate-900 text-slate-50 px-3 py-2 rounded-md font-mono text-xs">
-              <code className="flex-1">curl -fsSL https://raw.githubusercontent.com/audsiui/nanovps-agent/main/install.sh | sudo bash</code>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-slate-400 hover:text-slate-100"
-                onClick={copyInstallCommand}
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
-            <p className="mt-2 text-xs opacity-80">
-              更多详情可参考{' '}
-              <a
-                href="https://github.com/audsiui/nanovps-agent"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:no-underline"
-              >
-                GitHub 仓库
-              </a>
-            </p>
-          </AlertDescription>
-        </Alert>
-
         <div className="grid grid-cols-3 gap-4">
           <Field data-invalid={!!form.formState.errors.name}>
             <FieldLabel>
@@ -141,6 +103,7 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
               所属区域 <span className="text-destructive">*</span>
             </FieldLabel>
             <Select
+              defaultValue={String(node.regionId)}
               onValueChange={(value) => form.setValue('regionId', parseInt(value))}
             >
               <SelectTrigger>
@@ -185,7 +148,7 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
           <Field>
             <FieldLabel>初始状态</FieldLabel>
             <Select
-              defaultValue="1"
+              defaultValue={String(node.status)}
               onValueChange={(value) => form.setValue('status', parseInt(value))}
             >
               <SelectTrigger>
@@ -226,26 +189,24 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
             )}
           </Field>
 
-          <Field data-invalid={!!form.formState.errors.allocatableDiskGb}>
-            <FieldLabel>
-              硬盘容量 (GB) <span className="text-destructive">*</span>
-            </FieldLabel>
+          <Field>
+            <FieldLabel>硬盘容量 (GB)</FieldLabel>
             <Input
               type="number"
-              {...form.register('allocatableDiskGb', { valueAsNumber: true })}
+              value={node.allocatableDiskGb}
+              disabled
+              className="bg-muted"
             />
-            {form.formState.errors.allocatableDiskGb && (
-              <FieldError errors={[form.formState.errors.allocatableDiskGb]} />
-            )}
+            <p className="text-xs text-muted-foreground mt-1">硬盘容量不可修改</p>
           </Field>
         </div>
       </FieldGroup>
 
       <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onSuccess}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           取消
         </Button>
-        <Button type="submit">创建节点</Button>
+        <Button type="submit">保存修改</Button>
       </DialogFooter>
     </form>
   );
