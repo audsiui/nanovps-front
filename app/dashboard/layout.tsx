@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getAccessToken } from '@/lib/token';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -93,7 +95,28 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // 检查登录状态，未登录重定向到 /auth
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) {
+      router.replace('/auth');
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
+
+  // 检查认证状态中显示 loading
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/20 font-sans selection:bg-primary/20 selection:text-primary">

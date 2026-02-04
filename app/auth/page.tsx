@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -23,12 +23,41 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLogin, useRegister } from '@/lib/requests/auth';
-import { saveTokens } from '@/lib/token';
+import { saveTokens, getAccessToken } from '@/lib/token';
 import { toast } from 'sonner';
+import type { User } from '@/lib/types';
+
+// 根据用户角色进行重定向
+function redirectByRole(user: User, router: ReturnType<typeof useRouter>) {
+  if (user.role === 'admin') {
+    router.push('/admin/dashboard');
+  } else {
+    router.push('/dashboard');
+  }
+}
 
 export default function AuthPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('login');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // 检查是否已登录，已登录则根据角色重定向
+  useEffect(() => {
+    const token = getAccessToken();
+    const userStr = localStorage.getItem('user');
+
+    if (token && userStr) {
+      try {
+        const user: User = JSON.parse(userStr);
+        redirectByRole(user, router);
+      } catch {
+        // 解析失败，留在登录页
+        setIsCheckingAuth(false);
+      }
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
 
   // 登录 mutation
   const loginMutation = useLogin({
@@ -42,7 +71,7 @@ export default function AuthPage() {
       localStorage.setItem('user', JSON.stringify(data.user));
 
       toast.success('登录成功');
-      router.push('/dashboard');
+      redirectByRole(data.user, router);
     },
     onError: (error) => {
       toast.error(error.message || '登录失败');
@@ -80,6 +109,15 @@ export default function AuthPage() {
       password: formData.get('password') as string,
     });
   };
+
+  // 检查认证状态中显示 loading
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background font-sans selection:bg-primary/20 selection:text-primary relative overflow-hidden">
@@ -192,7 +230,7 @@ export default function AuthPage() {
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-bold tracking-tight">创建账户</CardTitle>
                 <CardDescription>
-                  注册即送 $10 体验金，无需信用卡
+                  极致性价比，比传统云服务器便宜 50%，低价高质
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
