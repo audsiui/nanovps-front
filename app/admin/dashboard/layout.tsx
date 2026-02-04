@@ -16,7 +16,6 @@ import {
   Menu,
   LogOut,
   Bell,
-  ChevronRight,
   Home,
   BookType,
 } from 'lucide-react';
@@ -42,7 +41,7 @@ import { useAuth } from '@/contexts/auth-context';
 const menuItems = [
   { icon: LayoutDashboard, label: '总览', href: '/admin/dashboard' },
   { icon: Users, label: '用户管理', href: '/admin/dashboard/users' },
-  { icon: Server, label: '实例管理', href: '/admin/dashboard/instances' },
+  { icon: Server, label: '服务器管理', href: '/admin/dashboard/servers' },
   { icon: ShoppingCart, label: '订单管理', href: '/admin/dashboard/orders' },
   { icon: CreditCard, label: '财务管理', href: '/admin/dashboard/finance' },
   { icon: Ticket, label: '工单管理', href: '/admin/dashboard/tickets' },
@@ -78,8 +77,8 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const currentMenuItem = getCurrentMenuItem();
 
   return (
-    <div className="min-h-screen bg-muted">
-      <header className="fixed top-0 left-0 right-0 h-16 bg-background border-b border-border/50  z-50">
+    <div className="min-h-screen bg-background">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-background z-50">
         <div className="flex items-center justify-between h-full px-4 lg:px-6">
           <div className="flex items-center gap-4">
             <Button
@@ -106,7 +105,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
             </Button>
 
             <DropdownMenu>
@@ -156,22 +155,25 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-background border-r border-border/50  overflow-y-auto">
-        <nav className="p-4 space-y-1">
+      <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-background border-r border-border/30 overflow-y-auto">
+        <nav className="p-3 space-y-0.5">
           {menuItems.map((item) => {
             const isActive = currentMenuItem?.href === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                   isActive
-                    ? 'bg-primary/10 text-primary border-l-4 border-primary -ml-4 pl-5'
-                    : 'text-foreground hover:bg-muted'
+                    ? 'text-primary font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
-                <item.icon className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                {item.label}
+                <item.icon className={`h-[18px] w-[18px] ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span>{item.label}</span>
+                {isActive && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
               </Link>
             );
           })}
@@ -179,19 +181,19 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-        <SheetContent side="left" className="p-0 w-64 bg-background border-r border-border/50 ">
+        <SheetContent side="left" className="p-0 w-64 bg-background border-r border-border/30">
           <SheetHeader className="sr-only">
             <SheetTitle>管理菜单</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col h-full">
-            <div className="flex items-center gap-2 p-4 border-b border-border/50 ">
+            <div className="flex items-center gap-2 p-4 border-b border-border/30">
               <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
                 <Shield className="h-4 w-4 text-primary-foreground" />
               </div>
               <span className="text-lg font-semibold text-foreground">NanoVPS 后台</span>
             </div>
 
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
               {menuItems.map((item) => {
                 const isActive = currentMenuItem?.href === item.href;
                 return (
@@ -199,14 +201,17 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                       isActive
-                        ? 'bg-primary/10 text-primary border-l-4 border-primary -ml-4 pl-5'
-                        : 'text-foreground hover:bg-muted'
+                        ? 'text-primary font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    <item.icon className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                    {item.label}
+                    <item.icon className={`h-[18px] w-[18px] ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
                   </Link>
                 );
               })}
@@ -217,24 +222,19 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
       <div className="pt-16 lg:pl-60 min-h-screen">
         <main className="p-4 lg:p-6">
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <Link href="/admin/dashboard" className="hover:text-foreground">
-              首页
-            </Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground font-medium">
-              {currentMenuItem?.label || '总览'}
-            </span>
-          </nav>
-
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="flex items-center gap-3 mb-6">
+            <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link href="/admin/dashboard" className="hover:text-foreground transition-colors">
+                首页
+              </Link>
+              <span className="text-border">/</span>
+            </nav>
+            <h1 className="text-lg font-medium text-foreground">
               {currentMenuItem?.label || '总览'}
             </h1>
           </div>
 
-            <div className="p-6">{children}</div>
-
+          {children}
         </main>
       </div>
     </div>
