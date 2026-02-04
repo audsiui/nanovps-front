@@ -18,6 +18,7 @@ import {
   Bell,
   ChevronRight,
   Home,
+  BookType,
 } from 'lucide-react';
 import {
   Sheet,
@@ -46,6 +47,7 @@ const menuItems = [
   { icon: CreditCard, label: '财务管理', href: '/admin/dashboard/finance' },
   { icon: Ticket, label: '工单管理', href: '/admin/dashboard/tickets' },
   { icon: Shield, label: '权限管理', href: '/admin/dashboard/roles' },
+  { icon: BookType, label: '字典管理', href: '/admin/dashboard/dictionaries' },
   { icon: Settings, label: '系统设置', href: '/admin/dashboard/settings' },
 ];
 
@@ -65,6 +67,15 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { user, logout } = useAuth();
+
+  // 获取当前匹配的菜单项（按路径长度降序，优先匹配最长路径）
+  const getCurrentMenuItem = () => {
+    // 按路径长度降序排序，确保子路径优先于父路径匹配
+    const sortedItems = [...menuItems].sort((a, b) => b.href.length - a.href.length);
+    return sortedItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  };
+
+  const currentMenuItem = getCurrentMenuItem();
 
   return (
     <div className="min-h-screen bg-muted">
@@ -148,7 +159,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-background border-r border-border/50  overflow-y-auto">
         <nav className="p-4 space-y-1">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = currentMenuItem?.href === item.href;
             return (
               <Link
                 key={item.href}
@@ -182,7 +193,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
               {menuItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const isActive = currentMenuItem?.href === item.href;
                 return (
                   <Link
                     key={item.href}
@@ -212,15 +223,13 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
             </Link>
             <ChevronRight className="h-4 w-4" />
             <span className="text-foreground font-medium">
-              {menuItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.label ||
-                '总览'}
+              {currentMenuItem?.label || '总览'}
             </span>
           </nav>
 
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">
-              {menuItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.label ||
-                '总览'}
+              {currentMenuItem?.label || '总览'}
             </h1>
           </div>
 
