@@ -12,6 +12,7 @@ import {
   Globe,
   Clock,
   Eye,
+  Package,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -176,6 +177,13 @@ export function ServerTable({
                         <DropdownMenuItem>
                           <Eye className="mr-2 h-4 w-4" />
                           查看详情
+                        </DropdownMenuItem>
+                      </Link>
+                      <DropdownMenuSeparator />
+                      <Link href={`/admin/dashboard/servers/plans?id=${node.id}`}>
+                        <DropdownMenuItem>
+                          <Package className="mr-2 h-4 w-4" />
+                          配置套餐
                         </DropdownMenuItem>
                       </Link>
                       <DropdownMenuSeparator />
