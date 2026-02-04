@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 import { Plus, Pencil, Trash2, Globe, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
+import {
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+} from '@/components/ui/field';
 import { toast } from 'sonner';
 import type { Region } from '@/lib/types';
 import {
@@ -41,6 +50,16 @@ import {
   useDeleteRegion,
   useToggleRegionStatus,
 } from '@/lib/requests/regions';
+
+// Zod 验证Schema
+const regionSchema = z.object({
+  name: z.string().min(1, '请输入区域名称').max(32, '区域名称最多32个字符'),
+  code: z.string().min(1, '请输入区域代码').max(32, '区域代码最多32个字符'),
+  sortOrder: z.number().int().min(0, '排序权重不能为负数'),
+  isActive: z.boolean(),
+});
+
+type RegionFormData = z.infer<typeof regionSchema>;
 
 export function RegionDictionary() {
   // 查询参数
@@ -53,12 +72,6 @@ export function RegionDictionary() {
   // 对话框状态
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRegion, setEditingRegion] = useState<Region | null>(null);
-  const [formData, setFormData] = useState<Partial<Region>>({
-    name: '',
-    code: '',
-    sortOrder: 0,
-    isActive: true,
-  });
 
   // 删除确认对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -71,13 +84,24 @@ export function RegionDictionary() {
   const deleteRegion = useDeleteRegion();
   const toggleStatus = useToggleRegionStatus();
 
-  // 获取区域列表（后端已排序）
+  // 获取区域列表
   const regions = data?.list || [];
+
+  // React Hook Form
+  const form = useForm<RegionFormData>({
+    resolver: zodResolver(regionSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      sortOrder: 0,
+      isActive: true,
+    },
+  });
 
   // 打开新增对话框
   const handleAdd = () => {
     setEditingRegion(null);
-    setFormData({
+    form.reset({
       name: '',
       code: '',
       sortOrder: regions.length,
@@ -89,7 +113,12 @@ export function RegionDictionary() {
   // 打开编辑对话框
   const handleEdit = (region: Region) => {
     setEditingRegion(region);
-    setFormData({ ...region });
+    form.reset({
+      name: region.name,
+      code: region.code,
+      sortOrder: region.sortOrder,
+      isActive: region.isActive,
+    });
     setIsDialogOpen(true);
   };
 
@@ -123,33 +152,30 @@ export function RegionDictionary() {
   };
 
   // 保存表单
-  const handleSave = async () => {
-    if (!formData.name || !formData.code) {
-      toast.error('请填写完整信息');
-      return;
-    }
-
+  const onSubmit = async (data: RegionFormData) => {
     try {
       if (editingRegion) {
         // 编辑模式
         await updateRegion.mutateAsync({
           id: editingRegion.id,
-          name: formData.name,
-          sortOrder: formData.sortOrder,
-          isActive: formData.isActive,
+          name: data.name,
+          code: data.code,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive,
         });
         toast.success('更新成功');
       } else {
         // 新增模式
         await createRegion.mutateAsync({
-          name: formData.name!,
-          code: formData.code!,
-          sortOrder: formData.sortOrder ?? regions.length,
-          isActive: formData.isActive ?? true,
+          name: data.name,
+          code: data.code,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive,
         });
         toast.success('添加成功');
       }
       setIsDialogOpen(false);
+      form.reset();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '操作失败');
     }
@@ -270,89 +296,94 @@ export function RegionDictionary() {
             </DialogTitle>
             <DialogDescription>
               {editingRegion
-                ? '修改区域信息，代码不可更改'
+                ? '修改区域信息'
                 : '添加新的服务器区域'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                区域名称 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="例如：中国香港"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="code">
-                区域代码 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="code"
-                placeholder="例如：hk, us-la, sg"
-                value={formData.code}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    code: e.target.value
-                      .toLowerCase()
-                      .replace(/\s/g, '-'),
-                  })
-                }
-                disabled={!!editingRegion}
-              />
-              <p className="text-xs text-muted-foreground">
-                用于查找国旗图片和逻辑识别，唯一不可重复
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sortOrder">排序权重</Label>
-              <Input
-                id="sortOrder"
-                type="number"
-                value={formData.sortOrder}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    sortOrder: parseInt(e.target.value) || 0,
-                  })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                数字越小排序越靠前
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, isActive: checked })
-                }
-              />
-              <Label htmlFor="isActive">启用该区域</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              取消
-            </Button>
-            <Button onClick={handleSave} disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {editingRegion ? '保存修改' : '确认添加'}
-            </Button>
-          </DialogFooter>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup className="py-4">
+              <Field data-invalid={!!form.formState.errors.name}>
+                <FieldLabel htmlFor="name">
+                  区域名称 <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="name"
+                  placeholder="例如：中国香港"
+                  {...form.register('name')}
+                  aria-invalid={!!form.formState.errors.name}
+                />
+                {form.formState.errors.name && (
+                  <FieldError errors={[form.formState.errors.name]} />
+                )}
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.code}>
+                <FieldLabel htmlFor="code">
+                  区域代码 <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="code"
+                  placeholder="例如：hk, us-la, sg"
+                  {...form.register('code', {
+                    onChange: (e) => {
+                      form.setValue(
+                        'code',
+                        e.target.value.toLowerCase().replace(/\s/g, '-')
+                      );
+                    },
+                  })}
+                  aria-invalid={!!form.formState.errors.code}
+                />
+                <FieldDescription>
+                  用于查找国旗图片和逻辑识别，唯一不可重复
+                </FieldDescription>
+                {form.formState.errors.code && (
+                  <FieldError errors={[form.formState.errors.code]} />
+                )}
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.sortOrder}>
+                <FieldLabel htmlFor="sortOrder">排序权重</FieldLabel>
+                <Input
+                  id="sortOrder"
+                  type="number"
+                  {...form.register('sortOrder', { valueAsNumber: true })}
+                  aria-invalid={!!form.formState.errors.sortOrder}
+                />
+                <FieldDescription>数字越小排序越靠前</FieldDescription>
+                {form.formState.errors.sortOrder && (
+                  <FieldError errors={[form.formState.errors.sortOrder]} />
+                )}
+              </Field>
+
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="isActive">启用该区域</FieldLabel>
+                <Switch
+                  id="isActive"
+                  checked={form.watch('isActive')}
+                  onCheckedChange={(checked) =>
+                    form.setValue('isActive', checked)
+                  }
+                />
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {editingRegion ? '保存修改' : '确认添加'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

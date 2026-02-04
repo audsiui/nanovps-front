@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 import { Plus, Pencil, Trash2, HardDrive, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
+import {
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+} from '@/components/ui/field';
 import { toast } from 'sonner';
 import type { Image } from '@/lib/types';
 import {
@@ -42,8 +51,19 @@ import {
   useToggleImageStatus,
 } from '@/lib/requests/images';
 
+// Zod 验证Schema
+const imageSchema = z.object({
+  name: z.string().min(1, '请输入镜像名称').max(64, '镜像名称最多64个字符'),
+  family: z.string().min(1, '请输入镜像家族').max(32, '镜像家族最多32个字符'),
+  description: z.string().max(200, '描述最多200个字符'),
+  imageRef: z.string().min(1, '请输入镜像引用').max(200, '镜像引用最多200个字符'),
+  isActive: z.boolean(),
+});
+
+type ImageFormData = z.infer<typeof imageSchema>;
+
 export function ImageDictionary() {
-  // 查询参数（去掉排序字段）
+  // 查询参数
   const [query] = useState({
     page: 1,
     pageSize: 100,
@@ -53,13 +73,6 @@ export function ImageDictionary() {
   // 对话框状态
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<Image | null>(null);
-  const [formData, setFormData] = useState<Partial<Image>>({
-    name: '',
-    family: '',
-    description: '',
-    imageRef: '',
-    isActive: true,
-  });
 
   // 删除确认对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,10 +88,22 @@ export function ImageDictionary() {
   // 获取镜像列表
   const images = data?.list || [];
 
+  // React Hook Form
+  const form = useForm<ImageFormData>({
+    resolver: zodResolver(imageSchema),
+    defaultValues: {
+      name: '',
+      family: '',
+      description: '',
+      imageRef: '',
+      isActive: true,
+    },
+  });
+
   // 打开新增对话框
   const handleAdd = () => {
     setEditingImage(null);
-    setFormData({
+    form.reset({
       name: '',
       family: '',
       description: '',
@@ -91,7 +116,13 @@ export function ImageDictionary() {
   // 打开编辑对话框
   const handleEdit = (image: Image) => {
     setEditingImage(image);
-    setFormData({ ...image });
+    form.reset({
+      name: image.name,
+      family: image.family,
+      description: image.description || '',
+      imageRef: image.imageRef,
+      isActive: image.isActive,
+    });
     setIsDialogOpen(true);
   };
 
@@ -125,36 +156,32 @@ export function ImageDictionary() {
   };
 
   // 保存表单
-  const handleSave = async () => {
-    if (!formData.name || !formData.family || !formData.imageRef) {
-      toast.error('请填写必填项');
-      return;
-    }
-
+  const onSubmit = async (data: ImageFormData) => {
     try {
       if (editingImage) {
         // 编辑模式
         await updateImage.mutateAsync({
           id: editingImage.id,
-          name: formData.name,
-          family: formData.family,
-          description: formData.description,
-          imageRef: formData.imageRef,
-          isActive: formData.isActive,
+          name: data.name,
+          family: data.family,
+          description: data.description,
+          imageRef: data.imageRef,
+          isActive: data.isActive,
         });
         toast.success('更新成功');
       } else {
         // 新增模式
         await createImage.mutateAsync({
-          name: formData.name!,
-          family: formData.family!,
-          description: formData.description || '',
-          imageRef: formData.imageRef!,
-          isActive: formData.isActive ?? true,
+          name: data.name,
+          family: data.family,
+          description: data.description,
+          imageRef: data.imageRef,
+          isActive: data.isActive,
         });
         toast.success('添加成功');
       }
       setIsDialogOpen(false);
+      form.reset();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '操作失败');
     }
@@ -283,92 +310,107 @@ export function ImageDictionary() {
                 : '添加新的系统镜像'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="imageName">
-                镜像名称 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="imageName"
-                placeholder="例如：Ubuntu 22.04 LTS"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="imageFamily">
-                镜像家族 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="imageFamily"
-                placeholder="例如：ubuntu, debian, centos"
-                value={formData.family}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    family: e.target.value.toLowerCase().replace(/\s/g, ''),
-                  })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                用于分类和筛选，如 ubuntu、debian、centos
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="imageRef">
-                镜像引用 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="imageRef"
-                placeholder="例如：docker.io/library/ubuntu:22.04"
-                value={formData.imageRef}
-                onChange={(e) =>
-                  setFormData({ ...formData, imageRef: e.target.value })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                镜像仓库完整地址，用于拉取镜像
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">描述</Label>
-              <Input
-                id="description"
-                placeholder="镜像描述信息"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="imageIsActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, isActive: checked })
-                }
-              />
-              <Label htmlFor="imageIsActive">启用该镜像</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              取消
-            </Button>
-            <Button onClick={handleSave} disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {editingImage ? '保存修改' : '确认添加'}
-            </Button>
-          </DialogFooter>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup className="py-4">
+              <Field data-invalid={!!form.formState.errors.name}>
+                <FieldLabel htmlFor="name">
+                  镜像名称 <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="name"
+                  placeholder="例如：Ubuntu 22.04 LTS"
+                  {...form.register('name')}
+                  aria-invalid={!!form.formState.errors.name}
+                />
+                {form.formState.errors.name && (
+                  <FieldError errors={[form.formState.errors.name]} />
+                )}
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.family}>
+                <FieldLabel htmlFor="family">
+                  镜像家族 <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="family"
+                  placeholder="例如：ubuntu, debian, centos"
+                  {...form.register('family', {
+                    onChange: (e) => {
+                      form.setValue(
+                        'family',
+                        e.target.value.toLowerCase().replace(/\s/g, '')
+                      );
+                    },
+                  })}
+                  aria-invalid={!!form.formState.errors.family}
+                />
+                <FieldDescription>
+                  用于分类和筛选，如 ubuntu、debian、centos
+                </FieldDescription>
+                {form.formState.errors.family && (
+                  <FieldError errors={[form.formState.errors.family]} />
+                )}
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.imageRef}>
+                <FieldLabel htmlFor="imageRef">
+                  镜像引用 <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="imageRef"
+                  placeholder="例如：docker.io/library/ubuntu:22.04"
+                  {...form.register('imageRef')}
+                  aria-invalid={!!form.formState.errors.imageRef}
+                />
+                <FieldDescription>
+                  镜像仓库完整地址，用于拉取镜像
+                </FieldDescription>
+                {form.formState.errors.imageRef && (
+                  <FieldError errors={[form.formState.errors.imageRef]} />
+                )}
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.description}>
+                <FieldLabel htmlFor="description">描述</FieldLabel>
+                <Input
+                  id="description"
+                  placeholder="镜像描述信息"
+                  {...form.register('description')}
+                  aria-invalid={!!form.formState.errors.description}
+                />
+                {form.formState.errors.description && (
+                  <FieldError errors={[form.formState.errors.description]} />
+                )}
+              </Field>
+
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="isActive">启用该镜像</FieldLabel>
+                <Switch
+                  id="isActive"
+                  checked={form.watch('isActive')}
+                  onCheckedChange={(checked) =>
+                    form.setValue('isActive', checked)
+                  }
+                />
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {editingImage ? '保存修改' : '确认添加'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
