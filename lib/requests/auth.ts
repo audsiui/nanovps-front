@@ -21,3 +21,8 @@ export function useRegister(
     ...options,
   });
 }
+
+// 用户登出（普通函数，非 hook，用于直接调用）
+export async function logoutApi(refreshToken: string): Promise<void> {
+  await post("/auth/logout", { refreshToken });
+}

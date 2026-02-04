@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getAccessToken, clearTokens, saveTokens } from '@/lib/token';
+import { getAccessToken, getRefreshToken, clearTokens, saveTokens } from '@/lib/token';
+import { logoutApi } from '@/lib/requests/auth';
 import { AuthContext } from '@/contexts/auth-context';
 import type { User } from '@/lib/types';
 
@@ -40,8 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   }, []);
 
-  // 登出：清除所有数据
-  const logout = useCallback(() => {
+  // 登出：调用后端接口，清除所有数据
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await logoutApi(refreshToken);
+      } catch {
+        // 即使接口调用失败也要继续清除本地数据
+      }
+    }
     clearTokens();
     setUser(null);
   }, []);

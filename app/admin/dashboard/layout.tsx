@@ -135,7 +135,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={logout}>
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => logout()}>
                   <LogOut className="mr-2 h-4 w-4" />
                   退出登录
                 </DropdownMenuItem>

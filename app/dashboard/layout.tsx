@@ -209,7 +209,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                         <DropdownMenuItem>个人资料</DropdownMenuItem>
                         <DropdownMenuItem>API 密钥</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20" onClick={logout}>
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20" onClick={() => logout()}>
                         <LogOut className="mr-2 h-4 w-4" />
                         退出登录
                         </DropdownMenuItem>
