@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,7 +14,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -25,6 +27,30 @@ import { useLogin, useRegister } from '@/lib/requests/auth';
 import { useAuth } from '@/contexts/auth-context';
 import { GuestGuard } from '@/components/auth-guard';
 import { toast } from 'sonner';
+import {
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldGroup,
+} from '@/components/ui/field';
+
+// 登录表单验证 Schema
+const loginSchema = z.object({
+  email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
+  password: z.string().min(1, '请输入密码'),
+});
+
+// 注册表单验证 Schema
+const registerSchema = z.object({
+  email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
+  password: z.string().min(8, '密码至少需要 8 位字符'),
+  terms: z.boolean().refine((val) => val === true, {
+    message: '请同意服务条款和隐私政策',
+  }),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('login');
@@ -44,6 +70,25 @@ function AuthPageContent({
   setActiveTab: (tab: string) => void;
 }) {
   const { login } = useAuth();
+
+  // 登录表单
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  // 注册表单
+  const registerForm = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      terms: false,
+    },
+  });
 
   // 登录 mutation
   const loginMutation = useLogin({
@@ -66,27 +111,26 @@ function AuthPageContent({
     onSuccess: () => {
       toast.success('注册成功，请登录');
       setActiveTab('login');
+      registerForm.reset();
     },
     onError: (error) => {
       toast.error(error.message || '注册失败');
     },
   });
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  // 登录提交
+  const onLoginSubmit = (data: LoginFormData) => {
     loginMutation.mutate({
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
+      email: data.email,
+      password: data.password,
     });
   };
 
-  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  // 注册提交
+  const onRegisterSubmit = (data: RegisterFormData) => {
     registerMutation.mutate({
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
+      email: data.email,
+      password: data.password,
     });
   };
 
@@ -139,50 +183,68 @@ function AuthPageContent({
                   输入您的邮箱以访问控制台
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email-login">邮箱地址</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email-login"
-                        name="email"
-                        placeholder="name@example.com"
-                        type="email"
-                        className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password-login">密码</Label>
-                      <Link
-                        href="#"
-                        className="text-xs text-primary hover:text-primary/80 underline-offset-4 hover:underline"
-                      >
-                        忘记密码?
-                      </Link>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="password-login"
-                        name="password"
-                        type="password"
-                        className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={loginMutation.isPending}>
-                    {loginMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      "立即登录"
-                    )}
-                  </Button>
+              <CardContent>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)}>
+                  <FieldGroup className="gap-4">
+                    <Field data-invalid={!!loginForm.formState.errors.email}>
+                      <FieldLabel htmlFor="email-login">
+                        邮箱地址 <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email-login"
+                          placeholder="name@example.com"
+                          type="email"
+                          className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
+                          {...loginForm.register('email')}
+                          aria-invalid={!!loginForm.formState.errors.email}
+                        />
+                      </div>
+                      {loginForm.formState.errors.email && (
+                        <FieldError errors={[loginForm.formState.errors.email]} />
+                      )}
+                    </Field>
+
+                    <Field data-invalid={!!loginForm.formState.errors.password}>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel htmlFor="password-login">
+                          密码 <span className="text-destructive">*</span>
+                        </FieldLabel>
+                        <Link
+                          href="#"
+                          className="text-xs text-primary hover:text-primary/80 underline-offset-4 hover:underline"
+                        >
+                          忘记密码?
+                        </Link>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="password-login"
+                          type="password"
+                          className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
+                          {...loginForm.register('password')}
+                          aria-invalid={!!loginForm.formState.errors.password}
+                        />
+                      </div>
+                      {loginForm.formState.errors.password && (
+                        <FieldError errors={[loginForm.formState.errors.password]} />
+                      )}
+                    </Field>
+
+                    <Button
+                      className="w-full bg-primary font-semibold shadow-lg shadow-primary/20"
+                      type="submit"
+                      disabled={loginMutation.isPending}
+                    >
+                      {loginMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        '立即登录'
+                      )}
+                    </Button>
+                  </FieldGroup>
                 </form>
               </CardContent>
             </Card>
@@ -196,61 +258,90 @@ function AuthPageContent({
                   极致性价比，比传统云服务器便宜 50%，低价高质
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email-register">邮箱地址</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email-register"
-                        name="email"
-                        placeholder="name@example.com"
-                        type="email"
-                        className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password-register">设置密码</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="password-register"
-                        name="password"
-                        type="password"
-                        placeholder="至少 8 位字符"
-                        className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
-                        required
-                      />
-                    </div>
-                  </div>
+              <CardContent>
+                <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
+                  <FieldGroup className="gap-4">
+                    <Field data-invalid={!!registerForm.formState.errors.email}>
+                      <FieldLabel htmlFor="email-register">
+                        邮箱地址 <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email-register"
+                          placeholder="name@example.com"
+                          type="email"
+                          className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
+                          {...registerForm.register('email')}
+                          aria-invalid={!!registerForm.formState.errors.email}
+                        />
+                      </div>
+                      {registerForm.formState.errors.email && (
+                        <FieldError errors={[registerForm.formState.errors.email]} />
+                      )}
+                    </Field>
 
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox id="terms" required />
-                    <Label
-                      htmlFor="terms"
-                      className="text-sm text-muted-foreground font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    <Field data-invalid={!!registerForm.formState.errors.password}>
+                      <FieldLabel htmlFor="password-register">
+                        设置密码 <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="password-register"
+                          type="password"
+                          placeholder="至少 8 位字符"
+                          className="pl-9 bg-background/50 border-border/50 focus:bg-background transition-colors"
+                          {...registerForm.register('password')}
+                          aria-invalid={!!registerForm.formState.errors.password}
+                        />
+                      </div>
+                      {registerForm.formState.errors.password && (
+                        <FieldError errors={[registerForm.formState.errors.password]} />
+                      )}
+                    </Field>
+
+                    <Field
+                      orientation="horizontal"
+                      data-invalid={!!registerForm.formState.errors.terms}
                     >
-                      我已阅读并同意{' '}
-                      <Link href="#" className="text-primary hover:underline">
-                        服务条款
-                      </Link>{' '}
-                      和{' '}
-                      <Link href="#" className="text-primary hover:underline">
-                        隐私政策
-                      </Link>
-                    </Label>
-                  </div>
-
-                  <Button className="w-full bg-primary font-semibold shadow-lg shadow-primary/20" type="submit" disabled={registerMutation.isPending}>
-                    {registerMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      "创建账户"
+                      <Checkbox
+                        id="terms"
+                        checked={registerForm.watch('terms')}
+                        onCheckedChange={(checked) =>
+                          registerForm.setValue('terms', checked as boolean)
+                        }
+                      />
+                      <FieldLabel
+                        htmlFor="terms"
+                        className="text-sm text-muted-foreground font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        我已阅读并同意{' '}
+                        <Link href="#" className="text-primary hover:underline">
+                          服务条款
+                        </Link>{' '}
+                        和{' '}
+                        <Link href="#" className="text-primary hover:underline">
+                          隐私政策
+                        </Link>
+                      </FieldLabel>
+                    </Field>
+                    {registerForm.formState.errors.terms && (
+                      <FieldError errors={[registerForm.formState.errors.terms]} />
                     )}
-                  </Button>
+
+                    <Button
+                      className="w-full bg-primary font-semibold shadow-lg shadow-primary/20"
+                      type="submit"
+                      disabled={registerMutation.isPending}
+                    >
+                      {registerMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        '创建账户'
+                      )}
+                    </Button>
+                  </FieldGroup>
                 </form>
               </CardContent>
             </Card>

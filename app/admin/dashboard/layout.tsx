@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -90,9 +91,14 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </Button>
 
-            <Link href="/admin/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
-                <Shield className="h-4 w-4 text-primary-foreground" />
+            <Link href="/admin/dashboard" className="flex items-center gap-2 group cursor-default">
+              <div className="relative h-8 w-8 transition-transform duration-300 group-hover:scale-110">
+                <Image
+                  src="/logo.png"
+                  alt="NanoVPS"
+                  fill
+                  className="object-contain"
+                />
               </div>
               <span className="text-lg font-semibold text-foreground hidden sm:block">
                 NanoVPS 管理后台
@@ -187,8 +193,13 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
           </SheetHeader>
           <div className="flex flex-col h-full">
             <div className="flex items-center gap-2 p-4 border-b border-border/30">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
-                <Shield className="h-4 w-4 text-primary-foreground" />
+              <div className="relative h-8 w-8">
+                <Image
+                  src="/logo.png"
+                  alt="NanoVPS"
+                  fill
+                  className="object-contain"
+                />
               </div>
               <span className="text-lg font-semibold text-foreground">NanoVPS 后台</span>
             </div>

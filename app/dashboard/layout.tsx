@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -50,9 +51,14 @@ function Sidebar({ pathname, onNavigate }: SidebarProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center px-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/25 transition-transform duration-300 group-hover:scale-110">
-            <span className="text-lg font-bold text-primary-foreground">N</span>
+        <Link href="/" className="flex items-center gap-2 group cursor-default">
+          <div className="relative h-8 w-8 transition-transform duration-300 group-hover:scale-110">
+            <Image
+              src="/logo.png"
+              alt="NanoVPS"
+              fill
+              className="object-contain"
+            />
           </div>
           <span className="text-xl font-bold tracking-tight text-foreground">
             Nano<span className="text-primary">VPS</span>
