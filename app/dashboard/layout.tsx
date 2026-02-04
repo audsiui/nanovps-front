@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { getAccessToken } from '@/lib/token';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -33,6 +31,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ModeToggle } from '@/components/theme-toggle';
+import { AuthGuard } from '@/components/auth-guard';
+import { useAuth } from '@/contexts/auth-context';
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: '工作台', href: '/dashboard' },
@@ -68,7 +68,7 @@ function Sidebar({ pathname, onNavigate }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onNavigate} 
+                onClick={onNavigate}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
@@ -94,35 +94,24 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <AuthGuard>
+      <DashboardContent>{children}</DashboardContent>
+    </AuthGuard>
+  );
+}
+
+// 实际的布局内容（已登录后才能渲染）
+function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  // 检查登录状态，未登录重定向到 /auth
-  useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      router.replace('/auth');
-    } else {
-      setIsCheckingAuth(false);
-    }
-  }, [router]);
-
-  // 检查认证状态中显示 loading
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-muted/20 font-sans selection:bg-primary/20 selection:text-primary">
-        
+
       <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
-         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.1]" />
+         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.1]" />
          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 blur-[120px]" />
       </div>
@@ -137,22 +126,22 @@ export default function DashboardLayout({
              <SheetHeader className="sr-only">
                 <SheetTitle>导航菜单</SheetTitle>
              </SheetHeader>
-             <Sidebar 
-               pathname={pathname} 
-               onNavigate={() => setIsMobileOpen(false)} 
+             <Sidebar
+               pathname={pathname}
+               onNavigate={() => setIsMobileOpen(false)}
              />
           </SheetContent>
         </Sheet>
       </div>
 
-      <div className="flex flex-col min-h-screen transition-all duration-300 md:pl-[18rem] md:pr-4">
-        
+      <div className="flex flex-col min-h-screen transition-all duration-300 md:pl-72 md:pr-4">
+
         <header className="sticky top-2 md:top-4 z-40 mx-2 md:mx-0 rounded-xl md:rounded-2xl border border-border/50 bg-card/70 backdrop-blur-xl px-4 shadow-sm transition-all duration-200">
             <div className="flex h-16 items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         className="md:hidden -ml-2 text-muted-foreground"
                         onClick={() => setIsMobileOpen(true)}
                     >
@@ -161,16 +150,16 @@ export default function DashboardLayout({
 
                     <div className="relative hidden sm:block w-64">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/70" />
-                        <Input 
-                            type="search" 
-                            placeholder="搜索资源 (⌘K)" 
+                        <Input
+                            type="search"
+                            placeholder="搜索资源 (⌘K)"
                             className="pl-9 h-9 bg-background/50 border-transparent focus:bg-background focus:border-primary/50 transition-all rounded-lg"
                         />
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4">
-                    
+
                     <div className="hidden sm:block">
                         <ModeToggle />
                     </div>
@@ -179,20 +168,22 @@ export default function DashboardLayout({
 
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button 
-                            variant="ghost" 
+                        <Button
+                            variant="ghost"
                             className="h-10 pl-2 pr-1 rounded-full flex items-center gap-2 hover:bg-muted/80 transition-all border border-transparent hover:border-border/50"
                         >
                              <div className="flex items-center gap-1.5 mr-1">
                                 <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="text-sm font-medium text-foreground tabular-nums">
-                                    $12.00
+                                    ${user?.balance ?? '0.00'}
                                 </span>
                              </div>
-                             
+
                             <Avatar className="h-8 w-8 border border-border/50">
-                                <AvatarImage src="https://github.com/shadcn.png" alt="@user" />
-                                <AvatarFallback className="bg-primary/10 text-primary font-medium">JD</AvatarFallback>
+                                <AvatarImage src="https://github.com/shadcn.png" alt={user?.email} />
+                                <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                                  {user?.email?.[0]?.toUpperCase() ?? 'U'}
+                                </AvatarFallback>
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
@@ -204,9 +195,9 @@ export default function DashboardLayout({
 
                         <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">John Doe</p>
+                            <p className="text-sm font-medium leading-none">{user?.email?.split('@')[0] ?? 'User'}</p>
                             <p className="text-xs leading-none text-muted-foreground">
-                            john@nanovps.io
+                            {user?.email}
                             </p>
                         </div>
                         </DropdownMenuLabel>
@@ -218,7 +209,7 @@ export default function DashboardLayout({
                         <DropdownMenuItem>个人资料</DropdownMenuItem>
                         <DropdownMenuItem>API 密钥</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20">
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20" onClick={logout}>
                         <LogOut className="mr-2 h-4 w-4" />
                         退出登录
                         </DropdownMenuItem>

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,55 +22,39 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLogin, useRegister } from '@/lib/requests/auth';
-import { saveTokens, getAccessToken } from '@/lib/token';
+import { useAuth } from '@/contexts/auth-context';
+import { GuestGuard } from '@/components/auth-guard';
 import { toast } from 'sonner';
-import type { User } from '@/lib/types';
-
-// 根据用户角色进行重定向
-function redirectByRole(user: User, router: ReturnType<typeof useRouter>) {
-  if (user.role === 'admin') {
-    router.push('/admin/dashboard');
-  } else {
-    router.push('/dashboard');
-  }
-}
 
 export default function AuthPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState('login');
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // 检查是否已登录，已登录则根据角色重定向
-  useEffect(() => {
-    const token = getAccessToken();
-    const userStr = localStorage.getItem('user');
+  return (
+    <GuestGuard adminRedirect="/admin/dashboard" userRedirect="/dashboard">
+      <AuthPageContent activeTab={activeTab} setActiveTab={setActiveTab} />
+    </GuestGuard>
+  );
+}
 
-    if (token && userStr) {
-      try {
-        const user: User = JSON.parse(userStr);
-        redirectByRole(user, router);
-      } catch {
-        // 解析失败，留在登录页
-        setIsCheckingAuth(false);
-      }
-    } else {
-      setIsCheckingAuth(false);
-    }
-  }, [router]);
+function AuthPageContent({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}) {
+  const { login } = useAuth();
 
   // 登录 mutation
   const loginMutation = useLogin({
     onSuccess: (data) => {
-      // 保存 token 信息
-      saveTokens({
+      login({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         expiresIn: data.expiresIn,
+        user: data.user,
       });
-      localStorage.setItem('user', JSON.stringify(data.user));
-
       toast.success('登录成功');
-      redirectByRole(data.user, router);
     },
     onError: (error) => {
       toast.error(error.message || '登录失败');
@@ -82,7 +65,6 @@ export default function AuthPage() {
   const registerMutation = useRegister({
     onSuccess: () => {
       toast.success('注册成功，请登录');
-      // 切换到登录标签页
       setActiveTab('login');
     },
     onError: (error) => {
@@ -90,8 +72,7 @@ export default function AuthPage() {
     },
   });
 
-  // 登录表单提交
-  const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     loginMutation.mutate({
@@ -100,8 +81,7 @@ export default function AuthPage() {
     });
   };
 
-  // 注册表单提交
-  const handleRegister = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     registerMutation.mutate({
@@ -110,28 +90,16 @@ export default function AuthPage() {
     });
   };
 
-  // 检查认证状态中显示 loading
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background font-sans selection:bg-primary/20 selection:text-primary relative overflow-hidden">
-      {/* --- 背景特效 (保持与首页一致) --- */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[30%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[100px]" />
         <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[100px]" />
         <div className="absolute bottom-0 left-[20%] w-[30%] h-[30%] rounded-full bg-muted/20 blur-[80px]" />
       </div>
 
-      {/* 网格背景 */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.15] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.15] pointer-events-none" />
 
-      {/* --- 返回首页按钮 --- */}
       <Link
         href="/"
         className="absolute top-8 left-8 flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors z-20"
@@ -140,9 +108,7 @@ export default function AuthPage() {
         返回首页
       </Link>
 
-      {/* --- 主体卡片 --- */}
       <div className="relative z-10 w-full max-w-md px-4">
-        {/* Logo 展示 */}
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2 group cursor-default">
             <div className="relative h-10 w-10 transition-transform duration-300 group-hover:scale-110">
@@ -165,7 +131,6 @@ export default function AuthPage() {
             <TabsTrigger value="register" className="text-sm font-medium transition-all duration-300">注册账户</TabsTrigger>
           </TabsList>
 
-          {/* === 登录面板 === */}
           <TabsContent value="login">
             <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
               <CardHeader className="space-y-1">
@@ -219,12 +184,10 @@ export default function AuthPage() {
                     )}
                   </Button>
                 </form>
-
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* === 注册面板 === */}
           <TabsContent value="register">
             <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
               <CardHeader className="space-y-1">
@@ -264,7 +227,6 @@ export default function AuthPage() {
                     </div>
                   </div>
 
-                  {/* 服务条款勾选 */}
                   <div className="flex items-center space-x-2 pt-2">
                     <Checkbox id="terms" required />
                     <Label
