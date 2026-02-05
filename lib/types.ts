@@ -185,18 +185,26 @@ export interface NodeListQuery {
   regionId?: number;
   /** 状态 */
   status?: number;
+  /** 关键词搜索 */
+  keyword?: string;
   /** 页码 */
   page?: number;
   /** 每页数量 */
   pageSize?: number;
 }
 
+/** 分页信息 */
+export interface Pagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 /** 节点列表响应 */
 export interface NodeListResponse {
   list: Node[];
-  total: number;
-  page: number;
-  pageSize: number;
+  pagination: Pagination;
 }
 
 /** 创建节点请求 */
