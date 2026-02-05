@@ -16,13 +16,15 @@ import {
   FieldGroup,
 } from '@/components/ui/field';
 import { PlanTemplate } from './types';
+import { useUpdatePlanTemplate } from '@/lib/requests/plan-templates';
+import { toast } from 'sonner';
 
 // 表单验证 Schema
 const planSchema = z.object({
   name: z.string().min(1, '请输入套餐名称').max(50, '名称最多50个字符'),
   cpu: z.number().min(1, 'CPU至少1核'),
-  ramMb: z.number().min(512, '内存至少512MB'),
-  diskGb: z.number().min(5, '硬盘至少5GB'),
+  ramMb: z.number().min(128, '内存至少128MB'),
+  diskGb: z.number().min(1, '硬盘至少1GB'),
   trafficGb: z.number().nullable().optional(),
   bandwidthMbps: z.number().nullable().optional(),
   portCount: z.number().nullable().optional(),
@@ -38,6 +40,8 @@ interface EditPlanFormProps {
 }
 
 export function EditPlanForm({ plan, onSuccess, onCancel }: EditPlanFormProps) {
+  const updateMutation = useUpdatePlanTemplate();
+
   const form = useForm<PlanSchemaType>({
     resolver: zodResolver(planSchema),
     defaultValues: {
@@ -52,16 +56,24 @@ export function EditPlanForm({ plan, onSuccess, onCancel }: EditPlanFormProps) {
     },
   });
 
-  const onSubmit = (data: PlanSchemaType) => {
-    const updatedPlan: PlanTemplate = {
-      ...plan,
-      ...data,
-      remark: data.remark || null,
-      updatedAt: new Date().toISOString(),
-    };
-    console.log('Update plan template data:', updatedPlan);
-    // TODO: 调用 API 更新套餐模板
-    onSuccess(updatedPlan);
+  const onSubmit = async (data: PlanSchemaType) => {
+    try {
+      const updated = await updateMutation.mutateAsync({
+        id: plan.id,
+        name: data.name,
+        remark: data.remark,
+        cpu: data.cpu,
+        ramMb: data.ramMb,
+        diskGb: data.diskGb,
+        trafficGb: data.trafficGb,
+        bandwidthMbps: data.bandwidthMbps,
+        portCount: data.portCount,
+      });
+      toast.success('套餐模板更新成功');
+      onSuccess(updated);
+    } catch (error) {
+      toast.error('更新失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   return (
@@ -109,8 +121,8 @@ export function EditPlanForm({ plan, onSuccess, onCancel }: EditPlanFormProps) {
             </FieldLabel>
             <Input
               type="number"
-              min={512}
-              step={512}
+              min={128}
+              step={64}
               {...form.register('ramMb', { valueAsNumber: true })}
             />
             {form.formState.errors.ramMb && (
@@ -124,7 +136,7 @@ export function EditPlanForm({ plan, onSuccess, onCancel }: EditPlanFormProps) {
             </FieldLabel>
             <Input
               type="number"
-              min={5}
+              min={1}
               {...form.register('diskGb', { valueAsNumber: true })}
             />
             {form.formState.errors.diskGb && (
@@ -167,10 +179,12 @@ export function EditPlanForm({ plan, onSuccess, onCancel }: EditPlanFormProps) {
       </FieldGroup>
 
       <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={updateMutation.isPending}>
           取消
         </Button>
-        <Button type="submit">保存修改</Button>
+        <Button type="submit" disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? '保存中...' : '保存修改'}
+        </Button>
       </DialogFooter>
     </form>
   );

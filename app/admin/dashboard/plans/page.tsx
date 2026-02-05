@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Plus, Search, Package } from 'lucide-react';
+import { Plus, Search, Package, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,33 +13,40 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  mockPlans,
   PlanCard,
   AddPlanForm,
   EditPlanForm,
   PlanTemplate,
 } from './components';
+import {
+  usePlanTemplateList,
+  useDeletePlanTemplate,
+} from '@/lib/requests/plan-templates';
+import { toast } from 'sonner';
 
 export default function PlansPage() {
-  const [plans, setPlans] = useState<PlanTemplate[]>(mockPlans);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanTemplate | null>(null);
 
+  // 获取套餐模板列表
+  const { data, isLoading, refetch } = usePlanTemplateList({
+    keyword: searchQuery || undefined,
+    page: 1,
+    pageSize: 100,
+  });
+
+  // 删除套餐模板
+  const deleteMutation = useDeletePlanTemplate();
+
+  // 套餐列表数据
+  const plans = useMemo(() => data?.list || [], [data]);
+
   // 按名称排序
   const sortedPlans = useMemo(() => {
     return [...plans].sort((a, b) => a.name.localeCompare(b.name));
   }, [plans]);
-
-  // 筛选逻辑
-  const filteredPlans = sortedPlans.filter((plan) => {
-    const matchesSearch =
-      plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      plan.id.toString().includes(searchQuery) ||
-      (plan.remark?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    return matchesSearch;
-  });
 
   // 处理编辑
   const handleEdit = (plan: PlanTemplate) => {
@@ -48,17 +55,27 @@ export default function PlansPage() {
   };
 
   // 处理保存编辑
-  const handleSaveEdit = (updatedPlan: PlanTemplate) => {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p))
-    );
+  const handleSaveEdit = () => {
     setIsEditDialogOpen(false);
     setSelectedPlan(null);
+    refetch();
   };
 
   // 处理删除
-  const handleDelete = (id: number) => {
-    setPlans((prev) => prev.filter((p) => p.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteMutation.mutateAsync({ id });
+      toast.success('套餐模板删除成功');
+      refetch();
+    } catch (error) {
+      toast.error('删除失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  // 处理添加成功
+  const handleAddSuccess = () => {
+    setIsAddDialogOpen(false);
+    refetch();
   };
 
   return (
@@ -87,13 +104,21 @@ export default function PlansPage() {
                 填写套餐配置信息以创建新的 VPS 套餐模板
               </DialogDescription>
             </DialogHeader>
-            <AddPlanForm onSuccess={() => setIsAddDialogOpen(false)} />
+            <AddPlanForm onSuccess={handleAddSuccess} />
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* 加载状态 */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">加载中...</p>
+        </div>
+      )}
+
       {/* 套餐卡片网格 */}
-      {filteredPlans.length === 0 ? (
+      {!isLoading && sortedPlans.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="p-4 rounded-full bg-muted">
             <Package className="h-8 w-8 text-muted-foreground" />
@@ -105,7 +130,7 @@ export default function PlansPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredPlans.map((plan) => (
+          {sortedPlans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}

@@ -29,12 +29,14 @@ interface AddServerPlanFormProps {
   availableTemplates: PlanTemplate[];
   onSuccess: (data: ServerPlanFormData) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 export function AddServerPlanForm({
   availableTemplates,
   onSuccess,
   onCancel,
+  isSubmitting = false,
 }: AddServerPlanFormProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     null
@@ -267,11 +269,11 @@ export function AddServerPlanForm({
 
       {/* 操作按钮 */}
       <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           取消
         </Button>
-        <Button type="submit" disabled={availableTemplates.length === 0}>
-          确认添加
+        <Button type="submit" disabled={availableTemplates.length === 0 || isSubmitting}>
+          {isSubmitting ? '提交中...' : '确认添加'}
         </Button>
       </div>
     </form>

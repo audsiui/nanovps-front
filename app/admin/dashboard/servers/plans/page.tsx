@@ -14,8 +14,7 @@ import {
   Globe,
   Trash2,
   Pencil,
-  Check,
-  X,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,109 +44,124 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { mockServers, Node } from '../components';
-import { mockPlans, PlanTemplate } from '../../plans/components';
-import { ServerPlan, ServerPlanFormData } from './components/types';
-import { mockServerPlans } from './components/data';
+import { useNodeDetail } from '@/lib/requests/nodes';
+import {
+  useNodePlanList,
+  useCreateNodePlan,
+  useUpdateNodePlan,
+  useDeleteNodePlan,
+} from '@/lib/requests/node-plans';
+import { usePlanTemplateList } from '@/lib/requests/plan-templates';
+import type { NodePlan } from '@/lib/types';
 import { AddServerPlanForm } from './components/add-server-plan-form';
 import { EditServerPlanForm } from './components/edit-server-plan-form';
+import { ServerPlanFormData } from './components/types';
+import { toast } from 'sonner';
 
 export default function ServerPlansPage() {
   const searchParams = useSearchParams();
   const serverId = searchParams.get('id');
+  const nodeId = serverId ? parseInt(serverId) : 0;
 
-  const [serverPlans, setServerPlans] = useState<ServerPlan[]>(mockServerPlans);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<ServerPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<NodePlan | null>(null);
 
-  // 获取当前服务器信息
-  const server = useMemo(() => {
-    return mockServers.find((s) => s.id.toString() === serverId);
-  }, [serverId]);
+  // 获取服务器详情
+  const { data: server, isLoading: isLoadingServer } = useNodeDetail(nodeId);
 
-  // 获取当前服务器的套餐列表
-  const currentServerPlans = useMemo(() => {
-    if (!serverId) return [];
-    return serverPlans.filter((p) => p.serverId.toString() === serverId);
-  }, [serverPlans, serverId]);
+  // 获取服务器套餐列表
+  const { data: plansData, isLoading: isLoadingPlans, refetch } = useNodePlanList(
+    nodeId,
+    { page: 1, pageSize: 100 }
+  );
+
+  // 获取所有套餐模板
+  const { data: templatesData } = usePlanTemplateList({ page: 1, pageSize: 100 });
+
+  // API mutations
+  const createMutation = useCreateNodePlan();
+  const updateMutation = useUpdateNodePlan();
+  const deleteMutation = useDeleteNodePlan();
+
+  // 套餐列表
+  const currentServerPlans = useMemo(() => plansData?.list || [], [plansData]);
 
   // 获取已使用的套餐模板ID
   const usedTemplateIds = useMemo(() => {
-    return new Set(currentServerPlans.map((p) => p.templateId));
+    return new Set(currentServerPlans.map((p) => p.planTemplateId));
   }, [currentServerPlans]);
 
   // 获取可选的套餐模板（排除已使用的）
   const availableTemplates = useMemo(() => {
-    return mockPlans.filter((p) => !usedTemplateIds.has(p.id));
-  }, [usedTemplateIds]);
+    const allTemplates = templatesData?.list || [];
+    return allTemplates.filter((t) => !usedTemplateIds.has(t.id));
+  }, [templatesData, usedTemplateIds]);
 
   // 处理添加套餐
-  const handleAddPlan = (data: ServerPlanFormData) => {
-    const template = mockPlans.find((p) => p.id === data.templateId);
-    if (!template || !serverId) return;
-
-    const newPlan: ServerPlan = {
-      id: Math.max(...serverPlans.map((p) => p.id), 0) + 1,
-      serverId: parseInt(serverId),
-      templateId: data.templateId,
-      name: template.name,
-      cpu: template.cpu,
-      ramMb: template.ramMb,
-      diskGb: template.diskGb,
-      trafficGb: template.trafficGb,
-      bandwidthMbps: template.bandwidthMbps,
-      portCount: template.portCount,
-      priceMonthly: data.priceMonthly,
-      priceYearly: data.priceYearly,
-      stock: data.stock,
-      isActive: data.isActive,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setServerPlans((prev) => [...prev, newPlan]);
-    setIsAddDialogOpen(false);
+  const handleAddPlan = async (data: ServerPlanFormData) => {
+    try {
+      await createMutation.mutateAsync({
+        nodeId,
+        planTemplateId: data.templateId,
+        priceMonthly: data.priceMonthly,
+        priceYearly: data.priceYearly,
+        stock: data.stock,
+        isActive: data.isActive,
+      });
+      toast.success('套餐添加成功');
+      setIsAddDialogOpen(false);
+      refetch();
+    } catch (error) {
+      toast.error('添加失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   // 处理编辑套餐
-  const handleEditPlan = (data: ServerPlanFormData) => {
+  const handleEditPlan = async (data: ServerPlanFormData) => {
     if (!selectedPlan) return;
 
-    setServerPlans((prev) =>
-      prev.map((p) =>
-        p.id === selectedPlan.id
-          ? {
-              ...p,
-              priceMonthly: data.priceMonthly,
-              priceYearly: data.priceYearly,
-              stock: data.stock,
-              isActive: data.isActive,
-              updatedAt: new Date().toISOString(),
-            }
-          : p
-      )
-    );
-    setIsEditDialogOpen(false);
-    setSelectedPlan(null);
+    try {
+      await updateMutation.mutateAsync({
+        id: selectedPlan.id,
+        priceMonthly: data.priceMonthly,
+        priceYearly: data.priceYearly,
+        stock: data.stock,
+        isActive: data.isActive,
+      });
+      toast.success('套餐更新成功');
+      setIsEditDialogOpen(false);
+      setSelectedPlan(null);
+      refetch();
+    } catch (error) {
+      toast.error('更新失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   // 处理删除套餐
-  const handleDeletePlan = () => {
+  const handleDeletePlan = async () => {
     if (!selectedPlan) return;
-    setServerPlans((prev) => prev.filter((p) => p.id !== selectedPlan.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedPlan(null);
+
+    try {
+      await deleteMutation.mutateAsync({ id: selectedPlan.id });
+      toast.success('套餐删除成功');
+      setIsDeleteDialogOpen(false);
+      setSelectedPlan(null);
+      refetch();
+    } catch (error) {
+      toast.error('删除失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   // 打开编辑对话框
-  const openEditDialog = (plan: ServerPlan) => {
+  const openEditDialog = (plan: NodePlan) => {
     setSelectedPlan(plan);
     setIsEditDialogOpen(true);
   };
 
   // 打开删除确认对话框
-  const openDeleteDialog = (plan: ServerPlan) => {
+  const openDeleteDialog = (plan: NodePlan) => {
     setSelectedPlan(plan);
     setIsDeleteDialogOpen(true);
   };
@@ -185,6 +199,16 @@ export default function ServerPlansPage() {
             返回服务器列表
           </Button>
         </Link>
+      </div>
+    );
+  }
+
+  // 加载中
+  if (isLoadingServer || isLoadingPlans) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">加载中...</p>
       </div>
     );
   }
@@ -417,6 +441,7 @@ export default function ServerPlansPage() {
             availableTemplates={availableTemplates}
             onSuccess={handleAddPlan}
             onCancel={() => setIsAddDialogOpen(false)}
+            isSubmitting={createMutation.isPending}
           />
         </DialogContent>
       </Dialog>
@@ -436,6 +461,7 @@ export default function ServerPlansPage() {
                 setIsEditDialogOpen(false);
                 setSelectedPlan(null);
               }}
+              isSubmitting={updateMutation.isPending}
             />
           )}
         </DialogContent>
@@ -465,8 +491,9 @@ export default function ServerPlansPage() {
             <AlertDialogAction
               onClick={handleDeletePlan}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
             >
-              删除
+              {deleteMutation.isPending ? '删除中...' : '删除'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

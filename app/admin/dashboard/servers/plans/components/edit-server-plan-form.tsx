@@ -14,18 +14,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ServerPlan, ServerPlanFormData } from './types';
+import type { NodePlan } from '@/lib/types';
+import { ServerPlanFormData } from './types';
 
 interface EditServerPlanFormProps {
-  plan: ServerPlan;
+  plan: NodePlan;
   onSuccess: (data: ServerPlanFormData) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 export function EditServerPlanForm({
   plan,
   onSuccess,
   onCancel,
+  isSubmitting = false,
 }: EditServerPlanFormProps) {
   const [priceMonthly, setPriceMonthly] = useState(plan.priceMonthly.toString());
   const [priceYearly, setPriceYearly] = useState(
@@ -187,10 +190,12 @@ export function EditServerPlanForm({
 
       {/* 操作按钮 */}
       <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           取消
         </Button>
-        <Button type="submit">保存修改</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? '保存中...' : '保存修改'}
+        </Button>
       </div>
     </form>
   );

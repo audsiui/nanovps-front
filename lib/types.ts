@@ -219,3 +219,126 @@ export interface CreateNodeRequest {
   regionId: number;
   status: number;
 }
+
+// ==================== 套餐模板管理类型 ====================
+
+/** 套餐模板 */
+export interface PlanTemplate {
+  id: number;
+  name: string;
+  remark: string | null;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb: number | null;
+  bandwidthMbps: number | null;
+  portCount: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 套餐模板列表查询参数 */
+export interface PlanTemplateListQuery {
+  /** 关键词搜索（名称/备注） */
+  keyword?: string;
+  /** 页码 */
+  page?: number;
+  /** 每页数量 */
+  pageSize?: number;
+}
+
+/** 套餐模板列表响应 */
+export interface PlanTemplateListResponse {
+  list: PlanTemplate[];
+  pagination: Pagination;
+}
+
+/** 创建套餐模板请求 */
+export interface CreatePlanTemplateRequest {
+  name: string;
+  remark?: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb?: number | null;
+  bandwidthMbps?: number | null;
+  portCount?: number | null;
+}
+
+/** 更新套餐模板请求 */
+export interface UpdatePlanTemplateRequest {
+  id: number;
+  name?: string;
+  remark?: string;
+  cpu?: number;
+  ramMb?: number;
+  diskGb?: number;
+  trafficGb?: number | null;
+  bandwidthMbps?: number | null;
+  portCount?: number | null;
+}
+
+/** 删除套餐模板请求 */
+export interface DeletePlanTemplateRequest {
+  id: number;
+}
+
+// ==================== 服务器套餐管理类型 ====================
+
+/** 服务器套餐 - 基于套餐模板创建 */
+export interface NodePlan {
+  id: number;
+  nodeId: number;
+  planTemplateId: number;
+  name: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb: number | null;
+  bandwidthMbps: number | null;
+  portCount: number | null;
+  priceMonthly: number;
+  priceYearly: number | null;
+  stock: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 服务器套餐列表查询参数 */
+export interface NodePlanListQuery {
+  /** 页码 */
+  page?: number;
+  /** 每页数量 */
+  pageSize?: number;
+}
+
+/** 服务器套餐列表响应 */
+export interface NodePlanListResponse {
+  list: NodePlan[];
+  pagination: Pagination;
+}
+
+/** 创建服务器套餐请求 */
+export interface CreateNodePlanRequest {
+  nodeId: number;
+  planTemplateId: number;
+  priceMonthly: number;
+  priceYearly?: number | null;
+  stock: number;
+  isActive?: boolean;
+}
+
+/** 更新服务器套餐请求 */
+export interface UpdateNodePlanRequest {
+  id: number;
+  priceMonthly?: number;
+  priceYearly?: number | null;
+  stock?: number;
+  isActive?: boolean;
+}
+
+/** 删除服务器套餐请求 */
+export interface DeleteNodePlanRequest {
+  id: number;
+}

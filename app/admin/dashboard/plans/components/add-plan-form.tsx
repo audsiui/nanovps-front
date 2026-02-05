@@ -15,13 +15,15 @@ import {
   FieldError,
   FieldGroup,
 } from '@/components/ui/field';
+import { useCreatePlanTemplate } from '@/lib/requests/plan-templates';
+import { toast } from 'sonner';
 
 // 表单验证 Schema
 const planSchema = z.object({
   name: z.string().min(1, '请输入套餐名称').max(50, '名称最多50个字符'),
   cpu: z.number().min(1, 'CPU至少1核'),
-  ramMb: z.number().min(512, '内存至少512MB'),
-  diskGb: z.number().min(5, '硬盘至少5GB'),
+  ramMb: z.number().min(128, '内存至少128MB'),
+  diskGb: z.number().min(1, '硬盘至少1GB'),
   trafficGb: z.number().nullable().optional(),
   bandwidthMbps: z.number().nullable().optional(),
   portCount: z.number().nullable().optional(),
@@ -35,6 +37,8 @@ interface AddPlanFormProps {
 }
 
 export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
+  const createMutation = useCreatePlanTemplate();
+
   const form = useForm<PlanSchemaType>({
     resolver: zodResolver(planSchema),
     defaultValues: {
@@ -49,10 +53,23 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
     },
   });
 
-  const onSubmit = (data: PlanSchemaType) => {
-    console.log('Submit plan template data:', data);
-    // TODO: 调用 API 创建套餐模板
-    onSuccess();
+  const onSubmit = async (data: PlanSchemaType) => {
+    try {
+      await createMutation.mutateAsync({
+        name: data.name,
+        remark: data.remark,
+        cpu: data.cpu,
+        ramMb: data.ramMb,
+        diskGb: data.diskGb,
+        trafficGb: data.trafficGb,
+        bandwidthMbps: data.bandwidthMbps,
+        portCount: data.portCount,
+      });
+      toast.success('套餐模板创建成功');
+      onSuccess();
+    } catch (error) {
+      toast.error('创建失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   return (
@@ -100,8 +117,8 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
             </FieldLabel>
             <Input
               type="number"
-              min={512}
-              step={512}
+              min={128}
+              step={64}
               {...form.register('ramMb', { valueAsNumber: true })}
             />
             {form.formState.errors.ramMb && (
@@ -115,7 +132,7 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
             </FieldLabel>
             <Input
               type="number"
-              min={5}
+              min={1}
               {...form.register('diskGb', { valueAsNumber: true })}
             />
             {form.formState.errors.diskGb && (
@@ -158,10 +175,12 @@ export function AddPlanForm({ onSuccess }: AddPlanFormProps) {
       </FieldGroup>
 
       <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onSuccess}>
+        <Button type="button" variant="outline" onClick={onSuccess} disabled={createMutation.isPending}>
           取消
         </Button>
-        <Button type="submit">创建模板</Button>
+        <Button type="submit" disabled={createMutation.isPending}>
+          {createMutation.isPending ? '创建中...' : '创建模板'}
+        </Button>
       </DialogFooter>
     </form>
   );
