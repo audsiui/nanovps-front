@@ -220,6 +220,19 @@ export interface CreateNodeRequest {
   status: number;
 }
 
+/** 更新节点请求 */
+export interface UpdateNodeRequest {
+  id: number;
+  name?: string;
+  agentToken?: string;
+  ipv4?: string;
+  ipv6?: string;
+  totalCpu?: number;
+  totalRamMb?: number;
+  regionId?: number;
+  status?: number;
+}
+
 // ==================== 套餐模板管理类型 ====================
 
 /** 套餐模板 */

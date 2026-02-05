@@ -5,6 +5,7 @@ import type {
   NodeListQuery,
   NodeListResponse,
   CreateNodeRequest,
+  UpdateNodeRequest,
 } from "@/lib/types";
 
 // Query keys
@@ -54,6 +55,25 @@ export function useCreateNode() {
     onSuccess: () => {
       // 创建成功后刷新列表
       queryClient.invalidateQueries({ queryKey: nodeKeys.lists() });
+    },
+  });
+}
+
+/**
+ * 更新节点
+ * POST /admin/nodes/update
+ */
+export function useUpdateNode() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Node, Error, UpdateNodeRequest>({
+    mutationFn: (data) => post("/admin/nodes/update", data),
+    onSuccess: (_, variables) => {
+      // 更新成功后刷新列表和详情
+      queryClient.invalidateQueries({ queryKey: nodeKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: nodeKeys.detail(variables.id),
+      });
     },
   });
 }

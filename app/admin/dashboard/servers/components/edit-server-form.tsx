@@ -21,7 +21,10 @@ import {
   FieldError,
   FieldGroup,
 } from '@/components/ui/field';
-import { Node } from './types';
+import { useRegionList } from '@/lib/requests/regions';
+import { useUpdateNode } from '@/lib/requests/nodes';
+import { toast } from 'sonner';
+import type { Node } from '@/lib/types';
 
 // 编辑表单验证 Schema - 硬盘不可编辑
 const editNodeSchema = z.object({
@@ -39,11 +42,14 @@ type EditNodeFormData = z.infer<typeof editNodeSchema>;
 
 interface EditServerFormProps {
   node: Node;
-  onSuccess: (updatedNode: Node) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
 export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProps) {
+  const { data: regionsData, isLoading: isLoadingRegions } = useRegionList({ isActive: true });
+  const updateNode = useUpdateNode();
+
   const form = useForm<EditNodeFormData>({
     resolver: zodResolver(editNodeSchema),
     defaultValues: {
@@ -58,14 +64,17 @@ export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProp
     },
   });
 
-  const onSubmit = (data: EditNodeFormData) => {
-    const updatedNode: Node = {
-      ...node,
-      ...data,
-      ipv6: data.ipv6 || undefined,
-      updatedAt: new Date().toISOString(),
-    };
-    onSuccess(updatedNode);
+  const onSubmit = async (data: EditNodeFormData) => {
+    try {
+      await updateNode.mutateAsync({
+        id: node.id,
+        ...data,
+      });
+      toast.success('节点更新成功');
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '节点更新失败');
+    }
   };
 
   return (
@@ -105,16 +114,17 @@ export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProp
             <Select
               defaultValue={String(node.regionId)}
               onValueChange={(value) => form.setValue('regionId', parseInt(value))}
+              disabled={isLoadingRegions}
             >
               <SelectTrigger>
-                <SelectValue placeholder="选择区域" />
+                <SelectValue placeholder={isLoadingRegions ? '加载中...' : '选择区域'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">香港</SelectItem>
-                <SelectItem value="2">日本</SelectItem>
-                <SelectItem value="3">新加坡</SelectItem>
-                <SelectItem value="4">美国</SelectItem>
-                <SelectItem value="5">德国</SelectItem>
+                {regionsData?.list.map((region) => (
+                  <SelectItem key={region.id} value={String(region.id)}>
+                    {region.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {form.formState.errors.regionId && (
@@ -146,7 +156,7 @@ export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProp
           </Field>
 
           <Field>
-            <FieldLabel>初始状态</FieldLabel>
+            <FieldLabel>状态</FieldLabel>
             <Select
               defaultValue={String(node.status)}
               onValueChange={(value) => form.setValue('status', parseInt(value))}
@@ -203,10 +213,12 @@ export function EditServerForm({ node, onSuccess, onCancel }: EditServerFormProp
       </FieldGroup>
 
       <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={updateNode.isPending}>
           取消
         </Button>
-        <Button type="submit">保存修改</Button>
+        <Button type="submit" disabled={updateNode.isPending || isLoadingRegions}>
+          {updateNode.isPending ? '保存中...' : '保存修改'}
+        </Button>
       </DialogFooter>
     </form>
   );
