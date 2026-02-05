@@ -290,17 +290,11 @@ export interface NodePlan {
   id: number;
   nodeId: number;
   planTemplateId: number;
-  name: string;
-  cpu: number;
-  ramMb: number;
-  diskGb: number;
-  trafficGb: number | null;
-  bandwidthMbps: number | null;
-  portCount: number | null;
-  priceMonthly: number;
-  priceYearly: number | null;
   stock: number;
-  isActive: boolean;
+  soldCount: number;
+  billingCycles: BillingCycle[];
+  status: number;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -319,23 +313,33 @@ export interface NodePlanListResponse {
   pagination: Pagination;
 }
 
+/** 计费周期 */
+export interface BillingCycle {
+  cycle: string;
+  enabled: boolean;
+  months: number;
+  name: string;
+  price: number;
+  sortOrder: number;
+}
+
 /** 创建服务器套餐请求 */
 export interface CreateNodePlanRequest {
   nodeId: number;
   planTemplateId: number;
-  priceMonthly: number;
-  priceYearly?: number | null;
+  billingCycles: BillingCycle[];
+  sortOrder?: number;
+  status?: number;
   stock: number;
-  isActive?: boolean;
 }
 
 /** 更新服务器套餐请求 */
 export interface UpdateNodePlanRequest {
   id: number;
-  priceMonthly?: number;
-  priceYearly?: number | null;
+  billingCycles?: BillingCycle[];
+  sortOrder?: number;
+  status?: number;
   stock?: number;
-  isActive?: boolean;
 }
 
 /** 删除服务器套餐请求 */

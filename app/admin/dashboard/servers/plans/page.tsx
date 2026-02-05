@@ -55,8 +55,14 @@ import { usePlanTemplateList } from '@/lib/requests/plan-templates';
 import type { NodePlan } from '@/lib/types';
 import { AddServerPlanForm } from './components/add-server-plan-form';
 import { EditServerPlanForm } from './components/edit-server-plan-form';
-import { ServerPlanFormData } from './components/types';
 import { toast } from 'sonner';
+
+// 从 billingCycles 中获取显示用的价格
+function getDisplayPrice(cycles: { name: string; price: number; enabled: boolean }[]) {
+  const enabledCycles = cycles?.filter(c => c.enabled) || [];
+  if (enabledCycles.length === 0) return '未设置';
+  return enabledCycles.map(c => `¥${c.price}/${c.name}`).join('、');
+}
 
 export default function ServerPlansPage() {
   const searchParams = useSearchParams();
@@ -88,6 +94,13 @@ export default function ServerPlansPage() {
   // 套餐列表
   const currentServerPlans = useMemo(() => plansData?.list || [], [plansData]);
 
+  // 模板映射表
+  const templateMap = useMemo(() => {
+    const map = new Map();
+    templatesData?.list?.forEach((t) => map.set(t.id, t));
+    return map;
+  }, [templatesData]);
+
   // 获取已使用的套餐模板ID
   const usedTemplateIds = useMemo(() => {
     return new Set(currentServerPlans.map((p) => p.planTemplateId));
@@ -100,15 +113,28 @@ export default function ServerPlansPage() {
   }, [templatesData, usedTemplateIds]);
 
   // 处理添加套餐
-  const handleAddPlan = async (data: ServerPlanFormData) => {
+  const handleAddPlan = async (data: {
+    planTemplateId: number;
+    stock: number;
+    sortOrder: number;
+    status: number;
+    billingCycles: {
+      cycle: string;
+      enabled: boolean;
+      months: number;
+      name: string;
+      price: number;
+      sortOrder: number;
+    }[];
+  }) => {
     try {
       await createMutation.mutateAsync({
         nodeId,
-        planTemplateId: data.templateId,
-        priceMonthly: data.priceMonthly,
-        priceYearly: data.priceYearly,
+        planTemplateId: data.planTemplateId,
         stock: data.stock,
-        isActive: data.isActive,
+        sortOrder: data.sortOrder,
+        status: data.status,
+        billingCycles: data.billingCycles,
       });
       toast.success('套餐添加成功');
       setIsAddDialogOpen(false);
@@ -119,16 +145,28 @@ export default function ServerPlansPage() {
   };
 
   // 处理编辑套餐
-  const handleEditPlan = async (data: ServerPlanFormData) => {
+  const handleEditPlan = async (data: {
+    stock: number;
+    sortOrder: number;
+    status: number;
+    billingCycles: {
+      cycle: string;
+      enabled: boolean;
+      months: number;
+      name: string;
+      price: number;
+      sortOrder: number;
+    }[];
+  }) => {
     if (!selectedPlan) return;
 
     try {
       await updateMutation.mutateAsync({
         id: selectedPlan.id,
-        priceMonthly: data.priceMonthly,
-        priceYearly: data.priceYearly,
         stock: data.stock,
-        isActive: data.isActive,
+        sortOrder: data.sortOrder,
+        status: data.status,
+        billingCycles: data.billingCycles,
       });
       toast.success('套餐更新成功');
       setIsEditDialogOpen(false);
@@ -167,8 +205,8 @@ export default function ServerPlansPage() {
   };
 
   // 获取状态徽章
-  const getStatusBadge = (isActive: boolean) => {
-    return isActive ? (
+  const getStatusBadge = (status: number) => {
+    return status === 1 ? (
       <Badge className="bg-green-500 hover:bg-green-600">启用</Badge>
     ) : (
       <Badge variant="secondary">禁用</Badge>
@@ -338,90 +376,90 @@ export default function ServerPlansPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentServerPlans.map((plan) => (
-                  <TableRow key={plan.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{plan.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ID: {plan.id}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col text-xs">
-                        <span className="flex items-center gap-1">
-                          <Cpu className="h-3 w-3 text-muted-foreground" />
-                          {plan.cpu} 核
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MemoryStick className="h-3 w-3 text-muted-foreground" />
-                          {plan.ramMb >= 1024
-                            ? `${plan.ramMb / 1024} GB`
-                            : `${plan.ramMb} MB`}{' '}
-                          内存
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <HardDrive className="h-3 w-3 text-muted-foreground" />
-                          {plan.diskGb} GB 硬盘
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col text-xs">
-                        <span>
-                          {plan.trafficGb
-                            ? `流量: ${plan.trafficGb} GB/月`
-                            : '流量: 不限'}
-                        </span>
-                        <span>
-                          {plan.bandwidthMbps
-                            ? `带宽: ${plan.bandwidthMbps} Mbps`
-                            : '带宽: 不限'}
-                        </span>
-                        <span>端口: {plan.portCount || '不限'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col text-xs">
-                        <span className="font-medium text-green-600">
-                          ¥{plan.priceMonthly}/月
-                        </span>
-                        {plan.priceYearly && (
-                          <span className="text-muted-foreground">
-                            ¥{plan.priceYearly}/年
+                {currentServerPlans.map((plan) => {
+                  const template = templateMap.get(plan.planTemplateId);
+                  return (
+                    <TableRow key={plan.id}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{template?.name || '未知套餐'}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ID: {plan.id}
                           </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{plan.stock}</span>
-                        {getStockBadge(plan.stock)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(plan.isActive)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(plan)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => openDeleteDialog(plan)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-xs">
+                          <span className="flex items-center gap-1">
+                            <Cpu className="h-3 w-3 text-muted-foreground" />
+                            {template?.cpu || '-'} 核
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MemoryStick className="h-3 w-3 text-muted-foreground" />
+                            {template?.ramMb >= 1024
+                              ? `${template.ramMb / 1024} GB`
+                              : `${template?.ramMb || '-'} MB`}{' '}
+                            内存
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <HardDrive className="h-3 w-3 text-muted-foreground" />
+                            {template?.diskGb || '-'} GB 硬盘
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-xs">
+                          <span>
+                            {template?.trafficGb
+                              ? `流量: ${template.trafficGb} GB/月`
+                              : '流量: 不限'}
+                          </span>
+                          <span>
+                            {template?.bandwidthMbps
+                              ? `带宽: ${template.bandwidthMbps} Mbps`
+                              : '带宽: 不限'}
+                          </span>
+                          <span>端口: {template?.portCount || '不限'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-xs">
+                          {plan.billingCycles?.filter(c => c.enabled).map((cycle) => (
+                            <span key={cycle.cycle} className="font-medium text-green-600">
+                              ¥{cycle.price}/{cycle.name}
+                            </span>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{plan.stock}</span>
+                          {getStockBadge(plan.stock)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(plan.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(plan)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => openDeleteDialog(plan)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -439,6 +477,7 @@ export default function ServerPlansPage() {
           </DialogHeader>
           <AddServerPlanForm
             availableTemplates={availableTemplates}
+            nodeId={nodeId}
             onSuccess={handleAddPlan}
             onCancel={() => setIsAddDialogOpen(false)}
             isSubmitting={createMutation.isPending}
@@ -456,6 +495,7 @@ export default function ServerPlansPage() {
           {selectedPlan && (
             <EditServerPlanForm
               plan={selectedPlan}
+              template={templateMap.get(selectedPlan.planTemplateId)}
               onSuccess={handleEditPlan}
               onCancel={() => {
                 setIsEditDialogOpen(false);
@@ -476,7 +516,7 @@ export default function ServerPlansPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除套餐「{selectedPlan?.name}」吗？此操作无法撤销。
+              确定要删除此套餐吗？此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
