@@ -157,3 +157,57 @@ export interface UpdateImageRequest {
 export interface DeleteImageRequest {
   id: number;
 }
+
+
+// ==================== 节点管理类型 ====================
+
+/** 节点 */
+export interface Node {
+  id: number;
+  name: string;
+  agentToken: string;
+  ipv4: string;
+  ipv6?: string;
+  totalCpu: number;
+  totalRamMb: number;
+  allocatableDiskGb: number;
+  usedDiskGb?: number;
+  lastHeartbeat: string | null;
+  status: number;
+  regionId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 节点列表查询参数 */
+export interface NodeListQuery {
+  /** 区域ID */
+  regionId?: number;
+  /** 状态 */
+  status?: number;
+  /** 页码 */
+  page?: number;
+  /** 每页数量 */
+  pageSize?: number;
+}
+
+/** 节点列表响应 */
+export interface NodeListResponse {
+  list: Node[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 创建节点请求 */
+export interface CreateNodeRequest {
+  name: string;
+  agentToken: string;
+  ipv4: string;
+  ipv6?: string;
+  totalCpu: number;
+  totalRamMb: number;
+  allocatableDiskGb: number;
+  regionId: number;
+  status: number;
+}

@@ -25,6 +25,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { useCreateNode } from '@/lib/requests/nodes';
+import { useRegionList } from '@/lib/requests/regions';
+import { toast } from 'sonner';
 
 // 表单验证 Schema - 匹配 nodes 表结构
 const nodeSchema = z.object({
@@ -47,6 +50,8 @@ interface AddServerFormProps {
 
 export function AddServerForm({ onSuccess }: AddServerFormProps) {
   const [copied, setCopied] = useState(false);
+  const createNode = useCreateNode();
+  const { data: regionsData, isLoading: isLoadingRegions } = useRegionList({ isActive: true });
 
   const form = useForm<NodeFormData>({
     resolver: zodResolver(nodeSchema),
@@ -69,10 +74,14 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const onSubmit = (data: NodeFormData) => {
-    console.log('Submit node data:', data);
-    // TODO: 调用 API 创建节点
-    onSuccess();
+  const onSubmit = async (data: NodeFormData) => {
+    try {
+      await createNode.mutateAsync(data);
+      toast.success('节点创建成功');
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '节点创建失败');
+    }
   };
 
   return (
@@ -142,16 +151,17 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
             </FieldLabel>
             <Select
               onValueChange={(value) => form.setValue('regionId', parseInt(value))}
+              disabled={isLoadingRegions}
             >
               <SelectTrigger>
-                <SelectValue placeholder="选择区域" />
+                <SelectValue placeholder={isLoadingRegions ? '加载中...' : '选择区域'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">香港</SelectItem>
-                <SelectItem value="2">日本</SelectItem>
-                <SelectItem value="3">新加坡</SelectItem>
-                <SelectItem value="4">美国</SelectItem>
-                <SelectItem value="5">德国</SelectItem>
+                {regionsData?.list.map((region) => (
+                  <SelectItem key={region.id} value={String(region.id)}>
+                    {region.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {form.formState.errors.regionId && (
@@ -245,7 +255,9 @@ export function AddServerForm({ onSuccess }: AddServerFormProps) {
         <Button type="button" variant="outline" onClick={onSuccess}>
           取消
         </Button>
-        <Button type="submit">创建节点</Button>
+        <Button type="submit" disabled={createNode.isPending || isLoadingRegions}>
+          {createNode.isPending ? '创建中...' : '创建节点'}
+        </Button>
       </DialogFooter>
     </form>
   );

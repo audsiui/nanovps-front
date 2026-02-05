@@ -138,7 +138,7 @@ export function UserTable({
                         <Key className="h-3.5 w-3.5 text-green-500" />
                         <span className="text-xs font-mono">{maskApiKey(user.apiKey)}</span>
                         {user.twoFactorAuth && (
-                          <Shield className="h-3 w-3 text-blue-500" title="已开启2FA" />
+                          <Shield className="h-3 w-3 text-blue-500"  />
                         )}
                       </>
                     ) : (
