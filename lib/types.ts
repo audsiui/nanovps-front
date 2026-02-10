@@ -296,6 +296,76 @@ export interface DeletePlanTemplateRequest {
   id: number;
 }
 
+// ==================== 产品目录类型 (Catalog) ====================
+
+/** 计费周期 */
+export interface CatalogBillingCycle {
+  cycle: string;
+  name: string;
+  months: number;
+  price: number;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+/** 套餐模板信息 */
+export interface CatalogTemplate {
+  id: number;
+  name: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb: number | null;
+  bandwidthMbps: number | null;
+  portCount: number | null;
+}
+
+/** 目录中的套餐 */
+export interface CatalogPlan {
+  id: number;
+  stock: number;
+  soldCount: number;
+  billingCycles: CatalogBillingCycle[];
+  sortOrder: number;
+  template: CatalogTemplate;
+}
+
+/** 目录中的节点 */
+export interface CatalogNode {
+  id: number;
+  name: string;
+  ipv4: string | null;
+  status: number;
+  plans: CatalogPlan[];
+}
+
+/** 目录中的区域 */
+export interface CatalogRegion {
+  id: number;
+  name: string;
+  code: string;
+  nodes: CatalogNode[];
+}
+
+/** 套餐详情 */
+export interface CatalogPlanDetail {
+  id: number;
+  stock: number;
+  soldCount: number;
+  billingCycles: CatalogBillingCycle[];
+  template: CatalogTemplate;
+  node: {
+    id: number;
+    name: string;
+    ipv4: string | null;
+  };
+  region: {
+    id: number;
+    name: string;
+    code: string;
+  };
+}
+
 // ==================== 服务器套餐管理类型 ====================
 
 /** 服务器套餐 - 基于套餐模板创建 */
