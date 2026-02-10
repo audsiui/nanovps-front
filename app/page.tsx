@@ -1,546 +1,669 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ModeToggle } from '@/components/theme-toggle';
 import {
   Cpu,
   Shield,
   Zap,
   Terminal,
-  ChevronDown,
   Server,
   Globe,
   Activity,
-  Menu,
-  X,
+  ChevronRight,
+  Play,
+  ArrowRight,
 } from 'lucide-react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-export default function Home() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+gsap.registerPlugin(ScrollTrigger);
 
-  // 监听页面滚动以改变导航栏样式
+// Text Scramble Effect Component
+function TextScramble({ text, className }: { text: string; className?: string }) {
+  const elRef = useRef<HTMLSpanElement>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    if (!elRef.current || hasAnimated) return;
 
-  const navLinks = [
-    { href: '#features', label: '产品特性' },
-    { href: '#architecture', label: '架构设计' },
-    { href: '#intro', label: '产品简介' },
-  ];
+    const chars = '!<>-_\\/[]{}—=+*^?#________';
+    const el = elRef.current;
+    const originalText = text;
+    let iteration = 0;
+
+    const interval = setInterval(() => {
+      el.innerText = originalText
+        .split('')
+        .map((char, index) => {
+          if (index < iteration) {
+            return originalText[index];
+          }
+          return chars[Math.floor(Math.random() * chars.length)];
+        })
+        .join('');
+
+      if (iteration >= originalText.length) {
+        clearInterval(interval);
+      }
+
+      iteration += 1 / 2;
+    }, 30);
+
+    setHasAnimated(true);
+    return () => clearInterval(interval);
+  }, [text, hasAnimated]);
+
+  return <span ref={elRef} className={className}>{text}</span>;
+}
+
+// Particle Network Background
+function ParticleNetwork() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+    }> = [];
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    const createParticles = () => {
+      particles = [];
+      const count = Math.min(80, Math.floor(window.innerWidth / 20));
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          size: Math.random() * 2 + 1,
+        });
+      }
+    };
+
+    const isDark = resolvedTheme === 'dark';
+    const particleColor = isDark ? '0, 243, 255' : '0, 123, 255';
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${particleColor}, ${isDark ? 0.5 : 0.3})`;
+        ctx.fill();
+
+        particles.slice(i + 1).forEach((p2) => {
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 150) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(${particleColor}, ${0.2 * (1 - dist / 150)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        });
+      });
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    resize();
+    createParticles();
+    draw();
+
+    window.addEventListener('resize', () => {
+      resize();
+      createParticles();
+    });
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [resolvedTheme]);
 
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-primary/20 selection:text-primary overflow-x-hidden">
-      {/* Navigation */}
-      <nav
-        className={`fixed top-0 z-50 w-full transition-all duration-300 ${
-          isScrolled
-            ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-xs'
-            : 'bg-transparent border-transparent'
-        }`}
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none"
+      style={{ opacity: 0.6 }}
+    />
+  );
+}
+
+// Live Terminal Component
+function LiveTerminal() {
+  const [lines, setLines] = useState<string[]>([
+    '> 初始化 NanoVPS 核心...',
+    '> 加载内核模块...',
+    '> 挂载容器文件系统...',
+  ]);
+  const terminalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const messages = [
+      '> 启动实例 nanovps-001...',
+      '> 分配资源: 2 vCPU, 4GB 内存',
+      '> 网络桥接已建立',
+      '> 容器在 0.3 秒内启动',
+      '> 健康检查: 通过',
+      '> 实例已就绪',
+      '> 监控代理已连接',
+    ];
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < messages.length) {
+        setLines((prev) => [...prev.slice(-6), messages[index]]);
+        index++;
+      } else {
+        index = 0;
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [lines]);
+
+  return (
+    <div className="rounded-lg overflow-hidden border border-border bg-background/80">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+        <div className="w-3 h-3 rounded-full bg-red-500/80" />
+        <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+        <div className="w-3 h-3 rounded-full bg-green-500/80" />
+        <span className="ml-4 text-xs text-muted-foreground font-mono">nano-console</span>
+      </div>
+      <div
+        ref={terminalRef}
+        className="p-4 h-40 overflow-hidden font-mono text-xs space-y-1 bg-black/90"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex cursor-pointer items-center gap-2 group z-50">
-              <div className="relative h-8 w-8 transition-transform duration-300 group-hover:scale-110">
-                <Image
-                  src="/logo.png"
-                  alt="NanoVPS"
-                  fill
-                  className="object-contain"
-                />
+        {lines.map((line, i) => (
+          <div key={i} className="text-green-400/90">
+            {line}
+            {i === lines.length - 1 && (
+              <span className="inline-block w-2 h-4 bg-green-400/90 ml-1 animate-pulse" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Animated Counter
+function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return;
+
+    gsap.fromTo(
+      ref.current,
+      { innerText: 0 },
+      {
+        innerText: numValue,
+        duration: 2,
+        ease: 'power2.out',
+        snap: { innerText: value.includes('.') ? 0.1 : 1 },
+        scrollTrigger: {
+          trigger: ref.current,
+          start: 'top 80%',
+        },
+      }
+    );
+  }, [value]);
+
+  return (
+    <span className="font-mono">
+      <span ref={ref}>0</span>
+      {suffix}
+    </span>
+  );
+}
+
+export default function Home() {
+  const { resolvedTheme } = useTheme();
+  const heroRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const architectureRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+      heroTl
+        .from('.hero-badge', { opacity: 0, y: 30, duration: 0.8 })
+        .from('.hero-title', { opacity: 0, y: 50, duration: 1 }, '-=0.5')
+        .from('.hero-subtitle', { opacity: 0, y: 30, duration: 0.8 }, '-=0.6')
+        .from('.hero-desc', { opacity: 0, y: 30, duration: 0.8 }, '-=0.6')
+        .from('.hero-cta', { opacity: 0, y: 30, duration: 0.8 }, '-=0.6')
+        .from('.hero-visual', { opacity: 0, scale: 0.9, duration: 1.2 }, '-=0.8');
+
+      gsap.utils.toArray<HTMLElement>('.feature-card').forEach((card, i) => {
+        gsap.from(card, {
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 85%',
+          },
+          opacity: 0,
+          y: 60,
+          duration: 0.8,
+          delay: i * 0.1,
+          ease: 'power3.out',
+        });
+      });
+
+      gsap.utils.toArray<HTMLElement>('.arch-card').forEach((card, i) => {
+        gsap.from(card, {
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 85%',
+          },
+          opacity: 0,
+          x: i % 2 === 0 ? -50 : 50,
+          duration: 0.8,
+          delay: i * 0.15,
+          ease: 'power3.out',
+        });
+      });
+
+      gsap.from('.stat-item', {
+        scrollTrigger: {
+          trigger: statsRef.current,
+          start: 'top 80%',
+        },
+        opacity: 0,
+        y: 40,
+        duration: 0.8,
+        stagger: 0.1,
+        ease: 'power3.out',
+      });
+
+      gsap.from('.cta-section', {
+        scrollTrigger: {
+          trigger: '.cta-section',
+          start: 'top 80%',
+        },
+        opacity: 0,
+        y: 60,
+        duration: 1,
+        ease: 'power3.out',
+      });
+    });
+
+    return () => ctx.revert();
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const isDark = resolvedTheme === 'dark';
+  const accentColor = isDark ? '#00f3ff' : '#007bff';
+
+  return (
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden font-sans selection:bg-primary/30">
+      {/* Global Effects - Dark mode only */}
+      {isDark && (
+        <div className="fixed inset-0 pointer-events-none z-50">
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              background: `repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1) 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+              )`,
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 100%)`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-40 px-4 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="rounded-full px-6 py-3 flex items-center justify-between bg-background/80 backdrop-blur-xl border border-border shadow-sm">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="relative w-8 h-8 transition-transform duration-300 group-hover:scale-110">
+                <Image src="/logo.png" alt="NanoVPS" fill className="object-contain" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-foreground">
+              <span className="text-xl font-bold tracking-tight">
                 Nano<span className="text-primary">VPS</span>
               </span>
             </Link>
 
-            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="relative text-sm font-medium text-muted-foreground transition-colors hover:text-primary group py-2"
+              {[
+                { label: '功能特性', id: 'features' },
+                { label: '架构设计', id: 'architecture' },
+                { label: '数据指标', id: 'stats' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group"
                 >
-                  {item.label}
-                  <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-                </a>
+                  <TextScramble text={item.label} />
+                  <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-300 group-hover:w-full" />
+                </button>
               ))}
+            </div>
+
+            <div className="flex items-center gap-4">
+              <ModeToggle />
               <Button
                 asChild
                 size="sm"
-                className="bg-primary shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:-translate-y-0.5"
+                className="bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/50 rounded-full"
               >
                 <Link href="/auth">立即开始</Link>
               </Button>
-              <ModeToggle />
-            </div>
-
-            {/* Mobile Menu Toggle */}
-            <div className="flex items-center gap-4 md:hidden">
-              <ModeToggle />
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-foreground p-2"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </button>
             </div>
           </div>
         </div>
-
-        {/* Mobile Navigation Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 w-full bg-background/95 backdrop-blur-xl border-b border-border/50 p-4 flex flex-col gap-4 animate-in slide-in-from-top-5 shadow-xl">
-            {navLinks.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-lg font-medium text-foreground hover:text-primary p-2 rounded-md hover:bg-muted transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {item.label}
-              </a>
-            ))}
-            <Button className="w-full bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              立即开始
-            </Button>
-          </div>
-        )}
       </nav>
 
       {/* Hero Section */}
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden pt-24 pb-12 bg-background">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-primary/10 blur-[120px]" />
-          <div className="absolute -bottom-[40%] -right-[20%] w-[70%] h-[70%] rounded-full bg-blue-500/10 blur-[120px]" />
-          <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-muted/50 blur-[100px]" />
-        </div>
-
-        {/* FIXED: Grid Pattern Syntax Corrected */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-[0.15]" />
-
-        {/* Floating Elements */}
-        <div className="absolute top-32 left-10 w-20 h-20 border border-primary/20 rounded-2xl rotate-12 opacity-20 animate-pulse hidden lg:block" />
-        <div className="absolute bottom-32 right-10 w-16 h-16 border border-primary/20 rounded-full opacity-20 animate-pulse delay-700 hidden lg:block" />
-
-        <div className="relative z-10 px-4 text-center sm:px-6 lg:px-8 max-w-6xl mx-auto flex flex-col items-center">
-          {/* Badge */}
-          <div className="mb-8 inline-flex">
-            <Badge
-              variant="secondary"
-              className="px-4 py-2 text-sm font-medium bg-secondary/50 backdrop-blur-sm border border-primary/20 shadow-xs hover:scale-105 transition-transform duration-300 cursor-default rounded-full"
-            >
-              <span className="mr-2 relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              Next-Gen Cloud Infrastructure
-            </Badge>
-          </div>
-
-          {/* Main Headline */}
-          <h1 className="mb-6 text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1] text-foreground">
-            新一代轻量云服务器
-            <br />
-            {/* FIXED: Gradient Syntax */}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-blue-500/60">
-              秒级启动，极致性能
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="mb-4 text-xl sm:text-2xl font-light tracking-tight text-foreground/80 font-mono">
-            Less Overhead, More Performance.
-          </p>
-          <p className="mx-auto mb-12 max-w-2xl text-base sm:text-lg leading-relaxed text-muted-foreground">
-            告别传统虚拟化的臃肿与等待。NanoVPS 提供毫秒级交付的完整 Linux
-            环境，
-            <br className="hidden md:block" />
-            让开发者专注于创造，而非等待。
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row w-full sm:w-auto">
-            <Button
-              asChild
-              size="lg"
-              className="w-full sm:w-auto relative overflow-hidden rounded-full px-8 text-lg font-semibold shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:-translate-y-1 bg-primary text-primary-foreground"
-            >
-              <Link href="/auth">免费试用</Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto rounded-full px-8 text-lg font-semibold border-2 hover:bg-primary/5 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 bg-background/50 backdrop-blur-sm"
-            >
-              查看演示
-            </Button>
-          </div>
-
-          {/* Dashboard Preview */}
-          <div className="relative mx-auto mt-20 max-w-5xl w-full group perspective-1000">
-            {/* FIXED: Gradient Syntax */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary via-primary/50 to-blue-500 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition duration-500"></div>
-            <Card className="relative overflow-hidden shadow-2xl border border-border/50 bg-card/80 backdrop-blur-md">
-              {/* Window Controls */}
-              <div className="flex items-center gap-2 border-b border-border/50 px-6 py-4 bg-muted/50">
-                <div className="h-3 w-3 rounded-full bg-red-500/80 shadow-sm" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500/80 shadow-sm" />
-                <div className="h-3 w-3 rounded-full bg-green-500/80 shadow-sm" />
-                <div className="ml-4 flex-1 text-center pr-12">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-background/50 text-xs text-muted-foreground font-mono border border-border/50 shadow-xs">
-                    <Globe className="w-3 h-3" />
-                    console.nanovps.io
-                  </div>
-                </div>
-              </div>
-
-              {/* FIXED: Gradient Syntax */}
-              <CardContent className="grid gap-8 p-8 md:grid-cols-3 bg-gradient-to-b from-card/50 to-muted/20">
-                <div className="space-y-6 md:col-span-2">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="h-4 w-1/3 rounded-full bg-muted/80 animate-pulse" />
-                      <div className="h-4 w-16 rounded-full bg-primary/20" />
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-muted/50" />
-                    <div className="h-2 w-2/3 rounded-full bg-muted/50" />
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="mt-8 grid grid-cols-2 gap-4">
-                    <Card className="relative overflow-hidden bg-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Zap className="w-5 h-5 text-primary" />
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            启动时间
-                          </span>
-                        </div>
-                        <div className="font-mono text-3xl font-bold text-primary">
-                          0.3s
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          比传统快 150 倍
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="relative overflow-hidden bg-secondary/30 border-border hover:border-primary/30 transition-all duration-300">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Activity className="w-5 h-5 text-primary" />
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            可用性
-                          </span>
-                        </div>
-                        <div className="font-mono text-3xl font-bold text-foreground">
-                          99.9%
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          SLA 保证
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Side Panel */}
-                <Card className="p-4 shadow-none bg-muted/30 border-dashed border-border/60">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 shadow-xs">
-                      <Server className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full w-3/4 bg-primary/80 rounded-full" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 shadow-xs">
-                      <Cpu className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full w-1/2 bg-primary/80 rounded-full" />
-                      </div>
-                    </div>
-                    <div className="h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center gap-2 text-xs font-medium text-green-600 dark:text-green-400">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      运行正常
-                    </div>
-                  </div>
-                </Card>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Scroll Indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden md:block">
-            <ChevronDown className="w-6 h-6 text-muted-foreground/50" />
-          </div>
-        </div>
-      </section>
-
-      {/* Introduction Section */}
       <section
-        id="intro"
-        className="relative bg-background py-32 overflow-hidden"
+        ref={heroRef}
+        className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden"
       >
-        {/* FIXED: Gradient Syntax */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="absolute inset-0">
+          <ParticleNetwork />
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `linear-gradient(${isDark ? 'rgba(0, 243, 255, 0.03)' : 'rgba(0, 123, 255, 0.03)'} 1px, transparent 1px),
+                linear-gradient(90deg, ${isDark ? 'rgba(0, 243, 255, 0.03)' : 'rgba(0, 123, 255, 0.03)'} 1px, transparent 1px)`,
+              backgroundSize: '60px 60px',
+            }}
+          />
+          <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[150px] ${isDark ? 'bg-[#00f3ff]/20' : 'bg-blue-500/10'}`} />
+          <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-[150px] ${isDark ? 'bg-[#a855f7]/20' : 'bg-purple-500/10'}`} />
+        </div>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <div>
-                <Badge
-                  variant="outline"
-                  className="mb-4 border-primary/30 text-primary"
-                >
-                  产品介绍
+              <div className="hero-badge inline-flex">
+                <Badge className="bg-primary/10 text-primary border-primary/30 px-4 py-1.5 rounded-full">
+                  <span className="w-2 h-2 rounded-full bg-primary mr-2 animate-pulse" />
+                  <TextScramble text="下一代基础设施" />
                 </Badge>
-                <h2 className="mb-6 text-3xl font-bold leading-tight text-foreground md:text-5xl">
-                  轻盈却不失强大
-                  <br />
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
-                    云服务器的新标准
-                  </span>
-                </h2>
-                <Separator className="mt-6 w-32 bg-gradient-to-r from-primary to-transparent" />
               </div>
 
-              <p className="text-lg leading-relaxed text-muted-foreground">
-                NanoVPS
-                专为开发者和云服务商设计，摒弃传统虚拟化的沉重包袱。我们利用先进的容器技术，在极简架构上构建企业级服务，让您用更少的资源，获得更高的性能。
+              <h1 className="hero-title text-5xl sm:text-6xl lg:text-7xl font-bold leading-[0.95] tracking-tight">
+                <span className="block text-foreground">光速云核心</span>
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
+                  LIGHTSPEED CORE
+                </span>
+              </h1>
+
+              <p className="hero-subtitle text-xl sm:text-2xl font-light text-muted-foreground font-mono">
+                <TextScramble text="更少开销，更强性能" />
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+              <p className="hero-desc text-base text-muted-foreground max-w-md leading-relaxed">
+                毫秒级交付的企业级云服务器。基于下一代容器技术，
+                为开发者打造极致的云计算体验。
+              </p>
+
+              <div className="hero-cta flex flex-wrap gap-4">
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-full px-8 group"
+                >
+                  <Link href="/auth">
+                    启动实例
+                    <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-border hover:bg-muted rounded-full px-8 group"
+                >
+                  <Play className="mr-2 w-4 h-4" />
+                  查看演示
+                </Button>
+              </div>
+
+              <div className="flex gap-8 pt-4">
                 {[
-                  {
-                    title: '资源独享',
-                    desc: '硬性资源隔离，告别邻居干扰',
-                    icon: <Shield className="w-4 h-4" />,
-                  },
-                  {
-                    title: '弹性扩展',
-                    desc: '热插拔配置，无需停机',
-                    icon: <Activity className="w-4 h-4" />,
-                  },
-                  {
-                    title: '完整系统',
-                    desc: '支持 SSH 的完整 Linux 体验',
-                    icon: <Terminal className="w-4 h-4" />,
-                  },
-                  {
-                    title: '极简管理',
-                    desc: '直观控制面板，一键部署',
-                    icon: <Zap className="w-4 h-4" />,
-                  },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-4 group p-4 rounded-xl hover:bg-muted/50 transition-all duration-300 hover:shadow-xs border border-transparent hover:border-border/50"
-                  >
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-xs group-hover:scale-110 transition-transform duration-300">
-                      {item.icon}
+                  { value: '0.3s', label: '启动时间' },
+                  { value: '99.9%', label: '可用性' },
+                  { value: '50+', label: '覆盖区域' },
+                ].map((stat) => (
+                  <div key={stat.label}>
+                    <div className="text-2xl font-bold text-primary font-mono">
+                      {stat.value}
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                        {item.desc}
-                      </p>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                      {stat.label}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Performance Card */}
-            <div className="relative group">
-              {/* FIXED: Gradient Syntax */}
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/20 via-primary/10 to-blue-500/20 blur-2xl opacity-60 group-hover:opacity-80 transition duration-500" />
-              <Card className="relative overflow-hidden shadow-2xl border-0 bg-card/80 backdrop-blur-sm">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5" />
-                <CardHeader className="relative px-8 pt-8">
+            <div className="hero-visual relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-2xl blur-2xl opacity-50" />
+              <Card className="relative bg-card/80 border-border backdrop-blur-xl overflow-hidden">
+                <CardHeader className="border-b border-border pb-4">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-2xl">性能对比</CardTitle>
-                      <CardDescription className="mt-2">
-                        同等配置下的表现差异
-                      </CardDescription>
+                    <div className="flex items-center gap-2">
+                      <Server className="w-5 h-5 text-primary" />
+                      <span className="font-mono text-sm text-muted-foreground">
+                        nano-dashboard
+                      </span>
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className="bg-secondary text-secondary-foreground"
-                    >
-                      基准测试
-                    </Badge>
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-xs text-green-500">在线</span>
+                    </div>
                   </div>
                 </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <LiveTerminal />
 
-                <CardContent className="relative space-y-8 px-8 pb-8">
-                  {/* Traditional VPS Bar */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground font-medium">
-                        传统虚拟化
-                      </span>
-                      <span className="text-muted-foreground font-mono">
-                        45s
-                      </span>
-                    </div>
-                    <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
-                      <div className="h-full w-full bg-muted-foreground/20 rounded-full" />
-                    </div>
-                  </div>
-
-                  {/* NanoVPS Bar */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-bold text-foreground flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-primary fill-primary" />
-                        NanoVPS
-                      </span>
-                      <span className="font-bold text-primary font-mono text-lg">
-                        0.3s
-                      </span>
-                    </div>
-                    <div className="h-4 w-full rounded-full bg-muted overflow-hidden shadow-inner">
-                      <div className="h-full w-[8%] bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      基于容器化技术的极速启动
-                    </p>
-                  </div>
-
-                  <Separator className="bg-gradient-to-r from-transparent via-border to-transparent" />
-
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-6 text-center divide-x divide-border/50">
+                  <div className="grid grid-cols-3 gap-4">
                     {[
-                      { value: '10x', label: '更快启动' },
-                      { value: '50%', label: '更低延迟' },
-                      { value: '0%', label: '性能损耗' },
-                    ].map((stat, i) => (
-                      <div key={i} className="group/stat px-2">
-                        <div className="text-2xl sm:text-3xl font-bold text-primary font-mono group-hover/stat:scale-110 transition-transform duration-300">
-                          {stat.value}
+                      { icon: Cpu, label: 'CPU', value: '12%' },
+                      { icon: Activity, label: '内存', value: '2.4GB' },
+                      { icon: Globe, label: '网络', value: '1.2Gbps' },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="rounded-lg p-3 text-center border border-border bg-muted/30 group hover:border-primary/30 transition-colors"
+                      >
+                        <item.icon className="w-4 h-4 text-muted-foreground mx-auto mb-2 group-hover:text-primary transition-colors" />
+                        <div className="text-lg font-bold font-mono text-foreground">
+                          {item.value}
                         </div>
-                        <div className="mt-1 text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                          {stat.label}
+                        <div className="text-[10px] text-muted-foreground uppercase">
+                          {item.label}
                         </div>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
+
+              <div className="absolute -top-4 -right-4 rounded-lg px-3 py-2 border border-primary/30 bg-primary/10">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-mono text-primary">10倍更快</span>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          <span className="text-xs text-muted-foreground uppercase tracking-widest">滚动</span>
+          <div className="w-px h-12 bg-gradient-to-b from-primary/50 to-transparent" />
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section
+        ref={statsRef}
+        id="stats"
+        className="relative py-24 border-y border-border/50 bg-muted/30"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { value: '10', suffix: '倍', label: '更快启动', desc: '对比传统 VPS' },
+              { value: '99.99', suffix: '%', label: '可用性 SLA', desc: '企业级保障' },
+              { value: '150', suffix: '+', label: '全球节点', desc: '边缘位置' },
+              { value: '24/7', suffix: '', label: '技术支持', desc: '全天候服务' },
+            ].map((stat, i) => (
+              <div key={i} className="stat-item text-center group">
+                <div className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground font-mono mb-2 group-hover:text-primary transition-colors">
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                </div>
+                <div className="text-sm font-semibold text-foreground mb-1">{stat.label}</div>
+                <div className="text-xs text-muted-foreground">{stat.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
       <section
+        ref={featuresRef}
         id="features"
-        className="relative py-32 overflow-hidden bg-muted/30"
+        className="relative py-32"
       >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-20 text-center">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
-              核心优势
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <Badge className="bg-muted text-muted-foreground border-border mb-4">
+              <TextScramble text="核心能力" />
             </Badge>
-            <h2 className="mb-4 text-3xl font-bold text-foreground md:text-5xl tracking-tight">
-              为什么选择 <span className="text-primary">NanoVPS</span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              为<span className="text-primary">速度</span>而生
             </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground text-lg">
-              精心打造的四大核心能力，为您的业务提供稳固基石
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              每一项功能都经过精心打磨，只为给你最纯粹的性能体验
             </p>
-            <Separator className="mx-auto mt-8 max-w-xs bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid md:grid-cols-2 gap-6">
             {[
               {
                 icon: Zap,
                 title: '极速启动',
-                desc: '毫秒级实例交付，即开即用。无论是临时测试环境还是突发业务扩容，都能在最短时间内就绪，让等待成为历史。',
+                desc: '毫秒级实例交付，告别漫长的等待时间。从点击到就绪，仅需 0.3 秒。',
+                color: isDark ? '#00f3ff' : '#007bff',
               },
               {
                 icon: Shield,
-                title: '安全可靠',
-                desc: '企业级资源隔离技术，确保您的数据与应用完全独立。银行级的安全标准，守护每一份重要数据。',
+                title: '硬核隔离',
+                desc: '企业级资源隔离技术，确保您的数据与应用完全独立，安全无忧。',
+                color: '#a855f7',
               },
               {
                 icon: Activity,
-                title: '灵活配置',
-                desc: '支持不重启调整网络与资源，业务零中断。动态适应您的业务需求，无论是 Web 服务还是游戏服务器都能轻松驾驭。',
+                title: '在线扩缩容',
+                desc: '支持不重启调整网络与资源，业务零中断，动态适应您的需求。',
+                color: '#22c55e',
               },
               {
                 icon: Terminal,
-                title: '原生体验',
-                desc: '提供完整的操作系统体验，包括独立进程管理与 SSH 访问。这不仅仅是一个容器，而是一台真正的云服务器。',
+                title: '原生 Linux',
+                desc: '完整的操作系统体验，包括独立进程管理与 SSH 访问，真正的云服务器。',
+                color: '#f59e0b',
               },
             ].map((feature, i) => (
               <Card
                 key={i}
-                className="group relative overflow-hidden border border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-primary/30"
+                className="feature-card group relative bg-card/50 border-border hover:border-primary/20 transition-all duration-500 overflow-hidden"
               >
-                <div className="relative p-8 h-full flex flex-col">
-                  {/* Icon */}
-                  <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
-                    <feature.icon className="h-7 w-7" />
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: `radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${feature.color}10, transparent 40%)`,
+                  }}
+                />
+                <CardContent className="relative p-8">
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-110"
+                    style={{ backgroundColor: `${feature.color}15` }}
+                  >
+                    <feature.icon
+                      className="w-7 h-7"
+                      style={{ color: feature.color }}
+                    />
                   </div>
-
-                  <CardTitle className="mb-3 text-2xl group-hover:text-primary transition-colors duration-300">
+                  <h3 className="text-2xl font-bold mb-3 group-hover:text-foreground transition-colors">
                     {feature.title}
-                  </CardTitle>
-                  <CardDescription className="text-base leading-relaxed text-muted-foreground flex-1">
-                    {feature.desc}
-                  </CardDescription>
+                  </h3>
+                  <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
 
-                  {/* Hover Arrow */}
-                  <div className="mt-6 flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transform -translate-x-2.5 group-hover:translate-x-0 transition-all duration-300">
-                    了解更多
-                    <svg
-                      className="w-4 h-4 ml-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
+                  <div className="mt-6 flex items-center text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span style={{ color: feature.color }}>了解更多</span>
+                    <ChevronRight className="w-4 h-4 ml-1" style={{ color: feature.color }} />
                   </div>
-                </div>
+                </CardContent>
               </Card>
             ))}
           </div>
@@ -549,182 +672,150 @@ export default function Home() {
 
       {/* Architecture Section */}
       <section
+        ref={architectureRef}
         id="architecture"
-        className="relative bg-background py-32 overflow-hidden"
+        className="relative py-32 border-y border-border/50 bg-muted/30"
       >
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-20 text-center">
-            <Badge
-              variant="outline"
-              className="mb-4 border-primary/30 text-primary"
-            >
-              技术架构
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <Badge className="bg-muted text-muted-foreground border-border mb-4">
+              <TextScramble text="系统架构" />
             </Badge>
-            <h2 className="mb-4 text-3xl font-bold text-foreground md:text-5xl">
-              简洁架构，强大功能
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              三层<span className="text-primary">核心</span>架构
             </h2>
-            <p className="text-muted-foreground text-lg">
-              三层极简设计，高效协同工作
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              极简架构设计，高效协同工作
             </p>
           </div>
 
-          <div className="relative">
-            {/* Connection Lines */}
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-border to-transparent z-0" />
-
-            <div className="grid gap-8 lg:grid-cols-3 relative z-10">
-              {[
-                {
-                  icon: Globe,
-                  title: '控制中心',
-                  subtitle: 'Nano Hub',
-                  desc: '统一的云端管理界面，集资源调度、计费和监控于一体。通过 RESTful API 轻松集成到您的业务系统。',
-                  step: '01',
-                },
-                {
-                  icon: Server,
-                  title: '边缘节点',
-                  subtitle: 'Nano Agent',
-                  desc: '轻量级本地代理，极低资源占用。负责容器生命周期管理和实时数据收集，确保宿主机性能最大化。',
-                  step: '02',
-                },
-                {
-                  icon: Cpu,
-                  title: '运行引擎',
-                  subtitle: 'Core Engine',
-                  desc: '基于现代容器技术构建，提供坚固的资源隔离边界。支持无守护进程模式和 Rootless 运行，安全且高效。',
-                  step: '03',
-                },
-              ].map((item, i) => (
-                <Card
-                  key={i}
-                  className="group relative border border-border/50 bg-gradient-to-br from-muted/50 to-card/50 hover:border-primary/30 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 overflow-visible"
-                >
-                  {/* Step Number */}
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-background border-2 border-primary/20 flex items-center justify-center font-bold text-primary shadow-lg group-hover:scale-110 transition-transform duration-300 z-10">
-                    {item.step}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {[
+              {
+                step: '01',
+                icon: Globe,
+                title: 'Nano Hub',
+                subtitle: '控制中心',
+                desc: '统一的云端管理界面，集资源调度、计费和监控于一体。通过 RESTful API 轻松集成到您的业务系统。',
+              },
+              {
+                step: '02',
+                icon: Server,
+                title: 'Nano Agent',
+                subtitle: '边缘节点',
+                desc: '轻量级本地代理，极低资源占用。负责容器生命周期管理和实时数据收集，确保宿主机性能最大化。',
+              },
+              {
+                step: '03',
+                icon: Cpu,
+                title: 'Core Engine',
+                subtitle: '运行引擎',
+                desc: '基于现代容器技术构建，提供坚固的资源隔离边界。支持无守护进程模式和 Rootless 运行，安全且高效。',
+              },
+            ].map((item, i) => (
+              <Card
+                key={i}
+                className="arch-card relative bg-card/50 border-border hover:border-primary/30 transition-all duration-500 group"
+              >
+                <div className="absolute -top-4 left-8 px-3 py-1 bg-primary/10 border border-primary/30 rounded text-primary text-xs font-mono font-bold">
+                  层级 {item.step}
+                </div>
+                <CardContent className="p-8 pt-10">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-6 group-hover:bg-primary/10 group-hover:scale-110 transition-all duration-300">
+                    <item.icon className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-
-                  <div className="pt-8 p-8 text-center flex flex-col h-full">
-                    {/* Icon */}
-                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                      <item.icon className="h-8 w-8" />
-                    </div>
-
-                    <CardTitle className="mb-2 text-2xl">
-                      {item.title}
-                    </CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className="mb-4 w-fit mx-auto bg-secondary text-secondary-foreground"
-                    >
-                      {item.subtitle}
-                    </Badge>
-
-                    <CardDescription className="text-base leading-relaxed text-muted-foreground flex-1">
-                      {item.desc}
-                    </CardDescription>
-                  </div>
-
-                  {/* Decorative corner */}
-                  <div className="absolute bottom-0 right-0 w-20 h-20 bg-gradient-to-tl from-primary/5 to-transparent rounded-tl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                </Card>
-              ))}
-            </div>
+                  <h3 className="text-2xl font-bold mb-1">{item.title}</h3>
+                  <p className="text-sm text-primary font-mono mb-4">{item.subtitle}</p>
+                  <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="relative overflow-hidden py-32 bg-muted/30">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-blue-500/10" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-[100px]" />
+      <section className="cta-section relative py-32 overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[200px]" />
+        </div>
 
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:40px_40px] opacity-[0.1]" />
-
-        <div className="relative z-10 px-4 text-center max-w-4xl mx-auto">
-          <h2 className="mb-6 text-3xl font-bold text-foreground md:text-6xl tracking-tight">
-            准备好提升您的
-            <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
-              云上体验？
-            </span>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-6xl font-bold mb-6">
+            准备好<span className="text-primary">部署</span>了吗？
           </h2>
-          <p className="mb-10 text-xl text-muted-foreground">
-            加入数千名开发者的行列，享受真正轻快的云计算
+          <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+            加入数千名开发者的行列，体验下一代云计算平台
           </p>
 
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="flex flex-wrap justify-center gap-4">
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto rounded-full px-10 py-6 text-lg font-bold shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-500 hover:-translate-y-1 bg-primary text-primary-foreground"
+              className="bg-primary text-primary-foreground font-bold hover:bg-primary/90 rounded-full px-10 py-6 text-lg group"
             >
               <Link href="/auth">
-                <span className="flex items-center gap-2">
-                  免费开始使用
-                  <Zap className="w-5 h-5" />
-                </span>
+                免费试用
+                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="w-full sm:w-auto rounded-full px-10 py-6 text-lg font-semibold border-2 hover:bg-background hover:border-primary/50 transition-all duration-300 hover:-translate-y-1"
+              className="border-border hover:bg-muted rounded-full px-10 py-6 text-lg"
             >
-              联系销售团队
+              联系销售
             </Button>
+          </div>
+
+          <div className="mt-16 flex flex-wrap justify-center gap-8 text-muted-foreground text-sm">
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              SOC 2 认证
+            </span>
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              GDPR 合规
+            </span>
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              ISO 27001
+            </span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative border-t border-border/50 bg-muted/30 pt-16 pb-8 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
-            <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-              <div className="relative h-10 w-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                <Image
-                  src="/logo.png"
-                  alt="NanoVPS"
-                  fill
-                  className="object-contain"
-                />
+      <footer className="border-t border-border py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="relative w-8 h-8">
+                <Image src="/logo.png" alt="NanoVPS" fill className="object-contain" />
               </div>
-              <div>
-                <span className="text-2xl font-bold text-foreground">
-                  Nano<span className="text-primary">VPS</span>
-                </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Less Overhead, More Performance.
-                </p>
-              </div>
+              <span className="text-xl font-bold">
+                Nano<span className="text-primary">VPS</span>
+              </span>
             </Link>
 
-            <div className="flex flex-wrap justify-center gap-8 text-sm font-medium">
-              {[
-                { label: '产品文档', href: '#' },
-                { label: 'API 参考', href: '#' },
-                { label: '服务状态', href: '#' },
-                { label: '关于我们', href: '#' },
-              ].map((link) => (
+            <div className="flex gap-8 text-sm text-muted-foreground">
+              {['产品文档', 'API 文档', '服务状态', '隐私政策'].map((link) => (
                 <a
-                  key={link.label}
-                  href={link.href}
-                  className="text-muted-foreground hover:text-primary transition-colors duration-300 relative group"
+                  key={link}
+                  href="#"
+                  className="hover:text-foreground transition-colors"
                 >
-                  {link.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+                  {link}
                 </a>
               ))}
             </div>
-          </div>
 
+            <p className="text-sm text-muted-foreground">
+              © 2025 NanoVPS. 保留所有权利。
+            </p>
+          </div>
         </div>
       </footer>
     </div>
