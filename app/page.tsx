@@ -91,12 +91,13 @@ function LiveTerminal() {
 }
 
 // Glass Card Component
-function GlassCard({ children, className = '', hover = true }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+function GlassCard({ children, className = '', hover = true, overflow = 'hidden' }: { children: React.ReactNode; className?: string; hover?: boolean; overflow?: 'hidden' | 'visible' }) {
   return (
     <motion.div
-      whileHover={hover ? { scale: 1.02, boxShadow: '0 0 30px rgba(255, 77, 0, 0.2)' } : undefined}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className={`bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden ${className}`}
+      whileHover={hover ? { scale: 1.01, boxShadow: '0 0 20px rgba(255, 77, 0, 0.15)' } : undefined}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className={`bg-white/5 backdrop-blur-md rounded-xl border border-white/10 ${overflow === 'hidden' ? 'overflow-hidden' : 'overflow-visible'} ${className}`}
+      style={{ willChange: 'transform' }}
     >
       {children}
     </motion.div>
@@ -425,7 +426,7 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-6 pt-4">
             {[
               { step: '01', icon: Globe, title: 'Nano Hub', subtitle: '控制中心', desc: '统一的云端管理界面，集资源调度、计费和监控于一体。' },
               { step: '02', icon: Server, title: 'Nano Agent', subtitle: '边缘节点', desc: '轻量级本地代理，极低资源占用，确保宿主机性能最大化。' },
@@ -438,8 +439,8 @@ export default function Home() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.15 }}
               >
-                <GlassCard className="h-full p-8 pt-10 relative group">
-                  <div className="absolute -top-3 left-8 px-3 py-1 bg-primary/10 border border-primary/30 rounded text-primary text-xs font-mono font-bold">
+                <GlassCard className="h-full p-8 pt-10 relative group" overflow="visible">
+                  <div className="absolute -top-3 left-8 px-3 py-1 bg-primary/10 border border-primary/30 rounded text-primary text-xs font-mono font-bold z-10">
                     层级 {item.step}
                   </div>
                   <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:bg-primary/10 group-hover:scale-110 transition-all duration-300">
