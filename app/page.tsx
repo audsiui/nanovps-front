@@ -169,7 +169,6 @@ export default function Home() {
               {[
                 { label: '功能特性', id: 'features' },
                 { label: '架构设计', id: 'architecture' },
-                { label: '价格方案', id: 'pricing' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -449,69 +448,6 @@ export default function Home() {
                   <h3 className="text-2xl font-bold mb-1">{item.title}</h3>
                   <p className="text-sm text-primary font-mono mb-4">{item.subtitle}</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="relative py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <Badge className="bg-muted text-muted-foreground border-border mb-4">价格方案</Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              简单透明的<span className="text-primary">定价</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              按需付费，无隐藏费用，随时可升级或降级
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { name: '入门版', price: '¥29', period: '/月', desc: '适合个人开发者', features: ['1 vCPU', '2GB 内存', '20GB SSD', '1TB 流量'] },
-              { name: '专业版', price: '¥99', period: '/月', desc: '适合小型团队', features: ['2 vCPU', '4GB 内存', '50GB SSD', '3TB 流量', '优先支持'], popular: true },
-              { name: '企业版', price: '¥299', period: '/月', desc: '适合大规模应用', features: ['4 vCPU', '8GB 内存', '100GB SSD', '10TB 流量', '专属客服', 'SLA保障'] },
-            ].map((plan, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-              >
-                <GlassCard className={`h-full p-8 relative ${plan.popular ? 'border-primary/50' : ''}`}>
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
-                      最受欢迎
-                    </div>
-                  )}
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <p className="text-muted-foreground text-sm mb-4">{plan.desc}</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
-                  </div>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, fi) => (
-                      <li key={fi} className="flex items-center gap-2 text-sm">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button 
-                    className={`w-full rounded-full ${plan.popular ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-white/10 hover:bg-white/20'}`}
-                  >
-                    选择方案
-                  </Button>
                 </GlassCard>
               </motion.div>
             ))}
