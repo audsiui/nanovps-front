@@ -5,5 +5,18 @@
 
 export type {
   PlanTemplate,
-  PlanTemplateFormData,
 } from '@/lib/types';
+
+/**
+ * 套餐模板表单数据类型
+ */
+export interface PlanTemplateFormData {
+  name: string;
+  remark?: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb?: number | null;
+  bandwidthMbps?: number | null;
+  portCount?: number | null;
+}

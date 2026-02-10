@@ -13,6 +13,7 @@ import {
   Search,
   Menu,
   LogOut,
+  ShoppingCart,
 } from 'lucide-react';
 import {
   Sheet,
@@ -39,6 +40,7 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: '工作台', href: '/dashboard' },
   { icon: ShoppingBag, label: '购买实例', href: '/dashboard/purchase' },
   { icon: Wallet, label: '财务管理', href: '/dashboard/finance' },
+  { icon: ShoppingCart, label: '我的订单', href: '/dashboard/orders' },
   { icon: Ticket, label: '工单管理', href: '/dashboard/tickets' },
 ];
 

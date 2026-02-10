@@ -429,3 +429,391 @@ export interface UpdateNodePlanRequest {
 export interface DeleteNodePlanRequest {
   id: number;
 }
+
+// ==================== 优惠码管理类型 ====================
+
+/** 优惠码折扣类型 */
+export type PromoCodeType = 'fixed' | 'percentage';
+
+/** 优惠码使用场景 */
+export type PromoCodeUsageType = 'purchase' | 'recharge' | 'both';
+
+/** 优惠码 */
+export interface PromoCode {
+  id: number;
+  code: string;
+  description?: string;
+  type: PromoCodeType;
+  value: string;
+  minAmount?: string;
+  maxDiscount?: string;
+  usageType: PromoCodeUsageType;
+  usageLimit?: number;
+  usageCount: number;
+  perUserLimit: number;
+  startAt?: string;
+  endAt?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 优惠码列表查询参数 */
+export interface PromoCodeListQuery {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  isActive?: boolean;
+}
+
+/** 优惠码列表响应 */
+export interface PromoCodeListResponse {
+  list: PromoCode[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 创建优惠码请求 */
+export interface CreatePromoCodeRequest {
+  code: string;
+  description?: string;
+  type: PromoCodeType;
+  value: string;
+  minAmount?: string;
+  maxDiscount?: string;
+  usageType?: PromoCodeUsageType;
+  usageLimit?: number;
+  perUserLimit?: number;
+  startAt?: string;
+  endAt?: string;
+  isActive?: boolean;
+}
+
+/** 更新优惠码请求 */
+export interface UpdatePromoCodeRequest {
+  id: number;
+  code?: string;
+  description?: string;
+  type?: PromoCodeType;
+  value?: string;
+  minAmount?: string;
+  maxDiscount?: string;
+  usageType?: PromoCodeUsageType;
+  usageLimit?: number;
+  perUserLimit?: number;
+  startAt?: string;
+  endAt?: string;
+  isActive?: boolean;
+}
+
+/** 删除优惠码请求 */
+export interface DeletePromoCodeRequest {
+  id: number;
+}
+
+/** 优惠码使用记录 */
+export interface PromoCodeUsage {
+  id: number;
+  promoCodeId: number;
+  userId: number;
+  orderId?: number;
+  rechargeId?: number;
+  originalAmount: string;
+  discountAmount: string;
+  finalAmount: string;
+  createdAt: string;
+  promoCode?: PromoCode;
+  user?: {
+    id: number;
+    email: string;
+  };
+}
+
+/** 优惠码使用记录查询参数 */
+export interface PromoCodeUsageQuery {
+  promoCodeId?: number;
+  userId?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+/** 优惠码使用记录响应 */
+export interface PromoCodeUsageResponse {
+  list: PromoCodeUsage[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 验证优惠码请求 */
+export interface ValidatePromoCodeQuery {
+  code: string;
+  amount: number;
+  usageType: 'purchase' | 'recharge';
+}
+
+/** 验证优惠码响应 */
+export interface ValidatePromoCodeResponse {
+  valid: boolean;
+  code: string;
+  type: PromoCodeType;
+  value: string;
+  discountAmount: string;
+  finalAmount: string;
+  message?: string;
+}
+
+// ==================== 赠金码管理类型 ====================
+
+/** 赠金码 */
+export interface GiftCode {
+  id: number;
+  code: string;
+  description?: string;
+  amount: string;
+  usageLimit?: number;
+  usageCount: number;
+  perUserLimit: number;
+  startAt?: string;
+  endAt?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 赠金码列表查询参数 */
+export interface GiftCodeListQuery {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  isActive?: boolean;
+}
+
+/** 赠金码列表响应 */
+export interface GiftCodeListResponse {
+  list: GiftCode[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 创建赠金码请求 */
+export interface CreateGiftCodeRequest {
+  code: string;
+  description?: string;
+  amount: string;
+  usageLimit?: number;
+  perUserLimit?: number;
+  startAt?: string;
+  endAt?: string;
+  isActive?: boolean;
+}
+
+/** 更新赠金码请求 */
+export interface UpdateGiftCodeRequest {
+  id: number;
+  code?: string;
+  description?: string;
+  amount?: string;
+  usageLimit?: number;
+  perUserLimit?: number;
+  startAt?: string;
+  endAt?: string;
+  isActive?: boolean;
+}
+
+/** 删除赠金码请求 */
+export interface DeleteGiftCodeRequest {
+  id: number;
+}
+
+/** 赠金码使用记录 */
+export interface GiftCodeUsage {
+  id: number;
+  giftCodeId: number;
+  userId: number;
+  amount: string;
+  createdAt: string;
+  giftCode?: GiftCode;
+  user?: {
+    id: number;
+    email: string;
+  };
+}
+
+/** 赠金码使用记录查询参数 */
+export interface GiftCodeUsageQuery {
+  giftCodeId?: number;
+  userId?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+/** 赠金码使用记录响应 */
+export interface GiftCodeUsageResponse {
+  list: GiftCodeUsage[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 使用赠金码请求 */
+export interface UseGiftCodeRequest {
+  code: string;
+}
+
+/** 使用赠金码响应 */
+export interface UseGiftCodeResponse {
+  success: boolean;
+  message: string;
+  amount?: string;
+  balance?: string;
+}
+
+// ==================== 订单管理类型 ====================
+
+/** 订单类型 */
+export type OrderType = 'new' | 'renew' | 'upgrade';
+
+/** 订单状态 */
+export type OrderStatus = 'pending' | 'paid' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded';
+
+/** 支付渠道 */
+export type PaymentChannel = 'alipay' | 'wechat' | 'stripe' | 'paypal' | 'balance';
+
+/** 订单 */
+export interface Order {
+  id: number;
+  orderNo: string;
+  userId: number;
+  instanceId?: number;
+  nodePlanId: number;
+  type: OrderType;
+  status: OrderStatus;
+  billingCycle: string;
+  durationMonths: number;
+  originalPrice: string;
+  discountAmount: string;
+  finalPrice: string;
+  paymentChannel?: PaymentChannel;
+  paidAt?: string;
+  paymentTradeNo?: string;
+  periodStartAt?: string;
+  periodEndAt?: string;
+  remark?: string;
+  createdAt: string;
+  updatedAt: string;
+  nodePlan?: {
+    id: number;
+    node: {
+      id: number;
+      name: string;
+    };
+    template: {
+      id: number;
+      name: string;
+    };
+  };
+}
+
+/** 订单列表查询参数 */
+export interface OrderListQuery {
+  page?: number;
+  pageSize?: number;
+  status?: OrderStatus;
+}
+
+/** 订单列表响应 */
+export interface OrderListResponse {
+  list: Order[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 计算订单金额查询参数 */
+export interface CalculateOrderQuery {
+  nodePlanId: number;
+  billingCycle: string;
+  durationMonths: number;
+  promoCode?: string;
+}
+
+/** 计算订单金额响应 */
+export interface CalculateOrderResponse {
+  nodePlanId: number;
+  billingCycle: string;
+  durationMonths: number;
+  originalPrice: string;
+  discountAmount: string;
+  finalPrice: string;
+  promoCode?: string;
+  promoCodeValid: boolean;
+  promoCodeMessage?: string;
+}
+
+/** 创建订单请求 */
+export interface CreateOrderRequest {
+  nodePlanId: number;
+  billingCycle: string;
+  durationMonths: number;
+  promoCode?: string;
+}
+
+/** 创建订单响应 */
+export interface CreateOrderResponse {
+  order: Order;
+  paymentUrl?: string;
+}
+
+// ==================== 充值管理类型 ====================
+
+/** 充值状态 */
+export type RechargeStatus = 'pending' | 'paid' | 'cancelled' | 'failed';
+
+/** 充值渠道 */
+export type RechargeChannel = 'alipay' | 'wechat' | 'stripe' | 'paypal';
+
+/** 充值记录 */
+export interface Recharge {
+  id: number;
+  rechargeNo: string;
+  userId: number;
+  amount: string;
+  bonusAmount: string;
+  finalAmount: string;
+  status: RechargeStatus;
+  channel?: RechargeChannel;
+  paidAt?: string;
+  tradeNo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 充值列表查询参数 */
+export interface RechargeListQuery {
+  page?: number;
+  pageSize?: number;
+  status?: RechargeStatus;
+}
+
+/** 充值列表响应 */
+export interface RechargeListResponse {
+  list: Recharge[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 创建充值请求 */
+export interface CreateRechargeRequest {
+  amount: number;
+  channel: RechargeChannel;
+}
+
+/** 创建充值响应 */
+export interface CreateRechargeResponse {
+  recharge: Recharge;
+  paymentUrl?: string;
+}

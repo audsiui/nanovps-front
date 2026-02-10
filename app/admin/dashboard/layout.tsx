@@ -20,6 +20,9 @@ import {
   Bell,
   Home,
   BookType,
+  Tag,
+  Gift,
+  Wallet,
 } from 'lucide-react';
 import {
   Sheet,
@@ -46,7 +49,9 @@ const menuItems = [
   { icon: Server, label: '服务器管理', href: '/admin/dashboard/servers' },
   { icon: Package, label: '套餐管理', href: '/admin/dashboard/plans' },
   { icon: ShoppingCart, label: '订单管理', href: '/admin/dashboard/orders' },
-  { icon: CreditCard, label: '财务管理', href: '/admin/dashboard/finance' },
+  { icon: Wallet, label: '充值管理', href: '/admin/dashboard/recharges' },
+  { icon: Tag, label: '优惠码', href: '/admin/dashboard/promo-codes' },
+  { icon: Gift, label: '赠金码', href: '/admin/dashboard/gift-codes' },
   { icon: Ticket, label: '工单管理', href: '/admin/dashboard/tickets' },
   { icon: BookType, label: '字典管理', href: '/admin/dashboard/dictionaries' },
   { icon: Settings, label: '系统设置', href: '/admin/dashboard/settings' },

@@ -7,6 +7,26 @@ export type {
   NodePlan,
 } from '@/lib/types';
 
+/** 服务器套餐展示类型 */
+export interface ServerPlan {
+  id: number;
+  serverId: number;
+  templateId: number;
+  name: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb: number;
+  bandwidthMbps: number;
+  portCount: number;
+  priceMonthly: number;
+  priceYearly: number;
+  stock: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** 服务器套餐表单数据（用于创建） */
 export interface ServerPlanFormData {
   /** 引用的套餐模板ID */

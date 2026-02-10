@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -34,16 +35,27 @@ import {
   AlertCircle,
   MapPin,
   Package,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCatalog } from '@/lib/requests/catalog';
 import { useImageList } from '@/lib/requests/images';
+import { useCalculateOrder, useCreateOrder } from '@/lib/requests/orders';
+import { useValidatePromoCode } from '@/lib/requests/promo-codes';
 import type { CatalogBillingCycle } from '@/lib/types';
+import { toast } from 'sonner';
 
 export default function PurchasePage() {
+  const router = useRouter();
+  
   // --- 数据获取 ---
   const { data: catalog, isLoading: isLoadingCatalog, error: catalogError } = useCatalog();
   const { data: imagesData, isLoading: isLoadingImages } = useImageList({ isActive: true, pageSize: 100 });
+
+  // --- Mutations ---
+  const calculateMutation = useCalculateOrder();
+  const createOrderMutation = useCreateOrder();
+  const validatePromoCodeMutation = useValidatePromoCode();
 
   // --- 状态管理 ---
   const [selectedRegionId, setSelectedRegionId] = useState<number | null>(null);
@@ -59,11 +71,15 @@ export default function PurchasePage() {
   // 订单选项
   const [autoRenew, setAutoRenew] = useState(true);
 
-  // 优惠券
-  const [couponCode, setCouponCode] = useState('');
-  const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
-  const [couponDiscount, setCouponDiscount] = useState(0);
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  // 优惠码
+  const [promoCode, setPromoCode] = useState('');
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState<string>('0');
+
+  // 计算结果
+  const [calculatedPrice, setCalculatedPrice] = useState<string | null>(null);
+  const [originalPrice, setOriginalPrice] = useState<string | null>(null);
 
   // --- 计算属性 ---
   const regions = useMemo(() => catalog || [], [catalog]);
@@ -99,7 +115,6 @@ export default function PurchasePage() {
           const firstPlan = firstNode.plans[0];
           setSelectedPlanId(firstPlan.id);
           
-          // 选择第一个启用的计费周期
           const firstEnabledCycle = firstPlan.billingCycles.find(c => c.enabled);
           if (firstEnabledCycle) {
             setSelectedCycle(firstEnabledCycle);
@@ -108,6 +123,30 @@ export default function PurchasePage() {
       }
     }
   }, [regions, selectedRegionId]);
+
+  // 计算订单金额
+  useMemo(() => {
+    const calculatePrice = async () => {
+      if (!selectedPlanId || !selectedCycle) return;
+      
+      try {
+        const result = await calculateMutation.mutateAsync({
+          nodePlanId: selectedPlanId,
+          billingCycle: selectedCycle.cycle,
+          durationMonths: selectedCycle.months,
+          promoCode: appliedPromoCode || undefined,
+        });
+        
+        setCalculatedPrice(result.finalPrice);
+        setOriginalPrice(result.originalPrice);
+        setPromoDiscount(result.discountAmount);
+      } catch (error) {
+        console.error('计算价格失败:', error);
+      }
+    };
+    
+    calculatePrice();
+  }, [selectedPlanId, selectedCycle, appliedPromoCode]);
 
   // --- 辅助功能 ---
   const generatePassword = () => {
@@ -119,21 +158,61 @@ export default function PurchasePage() {
     setRootPassword(pass);
   };
 
-  const handleVerifyCoupon = () => {
-    if (!couponCode) return;
-    setIsVerifyingCoupon(true);
+  const handleValidatePromoCode = async () => {
+    if (!promoCode || !selectedPlanId || !selectedCycle) return;
     
-    setTimeout(() => {
-      setIsVerifyingCoupon(false);
-      if (couponCode.toUpperCase() === 'NANO') {
-        setCouponDiscount(0.1);
-        setAppliedCoupon('NANO');
+    setIsValidatingPromo(true);
+    try {
+      const result = await validatePromoCodeMutation.mutateAsync({
+        code: promoCode,
+        amount: selectedCycle.price,
+        usageType: 'purchase',
+      });
+      
+      if (result.valid) {
+        setAppliedPromoCode(promoCode);
+        toast.success(`优惠码 ${promoCode} 已应用，可优惠 ¥${result.discountAmount}`);
       } else {
-        setCouponDiscount(0);
-        setAppliedCoupon(null);
-        alert("无效的优惠码 (试一下 'NANO')");
+        toast.error(result.message || '优惠码无效');
       }
-    }, 800);
+    } catch (error) {
+      toast.error('验证优惠码失败：' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const handleClearPromoCode = () => {
+    setAppliedPromoCode(null);
+    setPromoCode('');
+    setPromoDiscount('0');
+    toast.success('优惠码已取消');
+  };
+
+  const handleCreateOrder = async () => {
+    if (!selectedPlanId || !selectedCycle) {
+      toast.error('请选择套餐和计费周期');
+      return;
+    }
+
+    try {
+      const result = await createOrderMutation.mutateAsync({
+        nodePlanId: selectedPlanId,
+        billingCycle: selectedCycle.cycle,
+        durationMonths: selectedCycle.months,
+        promoCode: appliedPromoCode || undefined,
+      });
+      
+      toast.success('订单创建成功');
+      
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+      } else {
+        router.push('/dashboard/orders');
+      }
+    } catch (error) {
+      toast.error('创建订单失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
   };
 
   const handleRegionChange = (regionId: number) => {
@@ -159,6 +238,8 @@ export default function PurchasePage() {
       setSelectedPlanId(null);
       setSelectedCycle(null);
     }
+    // 清除优惠码
+    handleClearPromoCode();
   };
 
   const handleNodeChange = (nodeId: number) => {
@@ -175,6 +256,8 @@ export default function PurchasePage() {
       setSelectedPlanId(null);
       setSelectedCycle(null);
     }
+    // 清除优惠码
+    handleClearPromoCode();
   };
 
   const handlePlanChange = (planId: number) => {
@@ -185,20 +268,12 @@ export default function PurchasePage() {
       const firstEnabledCycle = plan.billingCycles.find(c => c.enabled);
       setSelectedCycle(firstEnabledCycle || null);
     }
+    // 清除优惠码
+    handleClearPromoCode();
   };
 
   // --- 价格计算 ---
-  const totalPrice = useMemo(() => {
-    if (!selectedCycle) return '0.00';
-    
-    let total = selectedCycle.price;
-    
-    if (couponDiscount > 0) {
-      total = total * (1 - couponDiscount);
-    }
-    
-    return total.toFixed(2);
-  }, [selectedCycle, couponDiscount]);
+  const totalPrice = calculatedPrice || selectedCycle?.price.toFixed(2) || '0.00';
 
   // --- 加载状态 ---
   if (isLoadingCatalog || isLoadingImages) {
@@ -455,7 +530,7 @@ export default function PurchasePage() {
                         >
                           <div className="font-semibold text-sm">{cycle.name}</div>
                           <div className="text-lg font-bold text-primary mt-1">
-                            ${cycle.price}
+                            ¥{cycle.price}
                           </div>
                           {isSelected && (
                             <div className="absolute top-1 right-1 text-primary">
@@ -632,24 +707,36 @@ export default function PurchasePage() {
                     <Input 
                       placeholder="输入优惠码" 
                       className="pl-9 h-9 text-sm" 
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      disabled={!!appliedCoupon}
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      disabled={!!appliedPromoCode}
+                      onKeyDown={(e) => e.key === 'Enter' && handleValidatePromoCode()}
                     />
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="h-9 px-3"
-                    onClick={handleVerifyCoupon}
-                    disabled={isVerifyingCoupon || !couponCode || !!appliedCoupon}
-                  >
-                    {isVerifyingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : (appliedCoupon ? '已应用' : '验证')}
-                  </Button>
+                  {appliedPromoCode ? (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-9 px-3"
+                      onClick={handleClearPromoCode}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-9 px-3"
+                      onClick={handleValidatePromoCode}
+                      disabled={isValidatingPromo || !promoCode || !selectedCycle}
+                    >
+                      {isValidatingPromo ? <Loader2 className="w-4 h-4 animate-spin" /> : '应用'}
+                    </Button>
+                  )}
                 </div>
-                {appliedCoupon && (
+                {appliedPromoCode && Number(promoDiscount) > 0 && (
                   <div className="text-xs text-green-600 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> 已应用 9折优惠 (Code: {appliedCoupon})
+                    <Check className="w-3 h-3" /> 已优惠 ¥{promoDiscount}
                   </div>
                 )}
               </div>
@@ -668,22 +755,27 @@ export default function PurchasePage() {
                 <div className="flex items-end justify-between">
                   <span className="text-muted-foreground mb-1">应付总额</span>
                   <div className="text-right">
-                    {appliedCoupon && selectedCycle && (
+                    {Number(promoDiscount) > 0 && originalPrice && (
                       <div className="text-xs text-muted-foreground line-through decoration-red-500">
-                        ${selectedCycle.price.toFixed(2)}
+                        ¥{originalPrice}
                       </div>
                     )}
-                    <span className="text-3xl font-bold text-primary">${totalPrice}</span>
-                    <span className="text-sm text-muted-foreground ml-1">USD</span>
+                    <span className="text-3xl font-bold text-primary">¥{totalPrice}</span>
+                    <span className="text-sm text-muted-foreground ml-1">CNY</span>
                   </div>
                 </div>
                 
                 <Button 
                   size="lg" 
                   className="w-full text-lg h-12 shadow-lg shadow-primary/25 font-bold" 
-                  disabled={!selectedPlan || !selectedCycle || !rootPassword || !selectedImageId}
+                  disabled={!selectedPlan || !selectedCycle || !rootPassword || !selectedImageId || createOrderMutation.isPending}
+                  onClick={handleCreateOrder}
                 >
-                  <CreditCard className="w-5 h-5 mr-2" />
+                  {createOrderMutation.isPending ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 mr-2" />
+                  )}
                   {!selectedPlan ? '请选择套餐' : 
                    !selectedCycle ? '请选择计费周期' : 
                    !selectedImageId ? '请选择操作系统' :

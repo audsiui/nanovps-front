@@ -34,7 +34,6 @@ import { Label } from '@/components/ui/label';
 import {
   ArrowDownLeft,
   CreditCard,
-  Download,
   Wallet,
   Zap,
   CheckCircle2,
@@ -44,28 +43,38 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
+import { useUseGiftCode, useMyGiftCodeUsages } from '@/lib/requests/gift-codes';
+import { useCreateRecharge, useMyRecharges } from '@/lib/requests/recharge';
+import { toast } from 'sonner';
+import { formatDate } from '@/lib/utils';
+import type { RechargeChannel, RechargeStatus } from '@/lib/types';
 
-
-const transactions = [
-  { id: 'TRX-9823', date: '2024-05-21', desc: '实例续费: My-Web-Server-01', type: 'expense', amount: 24.00, status: 'success' },
-  { id: 'TRX-9822', date: '2024-05-20', desc: '余额充值 (Alipay)', type: 'income', amount: 100.00, status: 'success' },
-  { id: 'TRX-9821', date: '2024-05-15', desc: '新购实例: Dev-DB-Node', type: 'expense', amount: 12.00, status: 'success' },
-  { id: 'TRX-9820', date: '2024-05-01', desc: '赠金兑换: 新手礼包', type: 'income', amount: 5.00, status: 'success' },
-  { id: 'TRX-9819', date: '2024-04-28', desc: '退款: 实例销毁', type: 'income', amount: 2.50, status: 'refund' },
-];
-
-const recharges = [
-  { id: 'PAY-3321', date: '2024-05-20 14:30', method: 'Alipay', amount: 100.00, status: 'completed' },
-  { id: 'PAY-3320', date: '2024-04-10 09:15', method: 'USDT (TRC20)', amount: 50.00, status: 'completed' },
-  { id: 'PAY-3319', date: '2024-03-01 22:00', method: 'WeChat Pay', amount: 200.00, status: 'completed' },
-  { id: 'PAY-3318', date: '2024-02-28 11:20', method: 'Gift Card', amount: 10.00, status: 'completed' },
-];
-
-function RechargeModal() {
+function RechargeModal({ onSuccess }: { onSuccess: () => void }) {
   const [amount, setAmount] = useState<number>(50);
-  const [method, setMethod] = useState('alipay');
+  const [channel, setChannel] = useState<RechargeChannel>('alipay');
+  const createRechargeMutation = useCreateRecharge();
 
   const presetAmounts = [10, 50, 100, 200, 500];
+
+  const handleRecharge = async () => {
+    try {
+      const result = await createRechargeMutation.mutateAsync({
+        amount,
+        channel,
+      });
+      
+      toast.success('充值订单创建成功');
+      
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+      } else {
+        onSuccess();
+      }
+    } catch (error) {
+      toast.error('创建充值订单失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
 
   return (
     <DialogContent className="sm:max-w-[425px] bg-card/95 backdrop-blur-xl border-border/50">
@@ -78,7 +87,7 @@ function RechargeModal() {
       
       <div className="grid gap-6 py-4">
         <div className="space-y-3">
-          <Label>选择金额 (USD)</Label>
+          <Label>选择金额 (CNY)</Label>
           <div className="grid grid-cols-3 gap-2">
             {presetAmounts.map((val) => (
               <div
@@ -91,11 +100,11 @@ function RechargeModal() {
                     : "border-border/50 hover:bg-muted"
                 )}
               >
-                ${val}
+                ¥{val}
               </div>
             ))}
             <div className="relative col-span-1">
-               <span className="absolute left-2 top-2 text-muted-foreground">$</span>
+               <span className="absolute left-2 top-2 text-muted-foreground">¥</span>
                <Input 
                  type="number" 
                  className="h-9 pl-5 text-sm" 
@@ -111,23 +120,24 @@ function RechargeModal() {
           <Label>支付方式</Label>
           <div className="grid grid-cols-1 gap-2">
             {[
-              { id: 'alipay', name: '支付宝 (Alipay)', icon: '🟦' },
-              { id: 'wechat', name: '微信支付 (WeChat)', icon: '🟩' },
-              { id: 'crypto', name: '加密货币 (USDT/BTC)', icon: '🪙' },
+              { id: 'alipay' as RechargeChannel, name: '支付宝 (Alipay)', icon: '🟦' },
+              { id: 'wechat' as RechargeChannel, name: '微信支付 (WeChat)', icon: '🟩' },
+              { id: 'stripe' as RechargeChannel, name: '信用卡 (Stripe)', icon: '💳' },
+              { id: 'paypal' as RechargeChannel, name: 'PayPal', icon: '🅿️' },
             ].map((m) => (
               <div
                 key={m.id}
-                onClick={() => setMethod(m.id)}
+                onClick={() => setChannel(m.id)}
                 className={cn(
                   "cursor-pointer flex items-center gap-3 p-3 rounded-lg border transition-all",
-                  method === m.id
+                  channel === m.id
                     ? "border-primary bg-primary/5 shadow-sm"
                     : "border-border/50 hover:bg-muted/50"
                 )}
               >
                 <span className="text-xl">{m.icon}</span>
                 <span className="text-sm font-medium">{m.name}</span>
-                {method === m.id && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                {channel === m.id && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
               </div>
             ))}
           </div>
@@ -135,26 +145,79 @@ function RechargeModal() {
       </div>
 
       <DialogFooter>
-        <Button className="w-full shadow-lg shadow-primary/25 font-bold" size="lg">
-          立即支付 ${amount}
+        <Button 
+          className="w-full shadow-lg shadow-primary/25 font-bold" 
+          size="lg"
+          onClick={handleRecharge}
+          disabled={createRechargeMutation.isPending || amount <= 0}
+        >
+          {createRechargeMutation.isPending ? (
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+          ) : (
+            <ArrowDownLeft className="w-5 h-5 mr-2" />
+          )}
+          立即支付 ¥{amount}
         </Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
-export default function BillingPage() {
-  const [redeemCode, setRedeemCode] = useState('');
-  const [isRedeeming, setIsRedeeming] = useState(false);
+const getStatusBadge = (status: RechargeStatus) => {
+  const statusMap: Record<RechargeStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | null | undefined }> = {
+    pending: { label: '待支付', variant: 'outline' },
+    paid: { label: '已支付', variant: 'default' },
+    cancelled: { label: '已取消', variant: 'secondary' },
+    failed: { label: '失败', variant: 'destructive' },
+  };
+  const config = statusMap[status];
+  return <Badge variant={config.variant}>{config.label}</Badge>;
+};
 
-  const handleRedeem = () => {
+const getChannelLabel = (channel?: string) => {
+  const channelMap: Record<string, string> = {
+    alipay: '支付宝',
+    wechat: '微信支付',
+    stripe: '信用卡',
+    paypal: 'PayPal',
+  };
+  return channel ? channelMap[channel] || channel : '-';
+};
+
+export default function BillingPage() {
+  const { user } = useAuth();
+  const [redeemCode, setRedeemCode] = useState('');
+  const [isRechargeDialogOpen, setIsRechargeDialogOpen] = useState(false);
+
+  // API Hooks
+  const useGiftCodeMutation = useUseGiftCode();
+  const { data: giftUsagesData, refetch: refetchGiftUsages } = useMyGiftCodeUsages({ page: 1, pageSize: 10 });
+  const { data: rechargesData, refetch: refetchRecharges } = useMyRecharges({ page: 1, pageSize: 10 });
+
+  const giftUsages = giftUsagesData?.list || [];
+  const recharges = rechargesData?.list || [];
+
+  const handleRedeem = async () => {
     if (!redeemCode) return;
-    setIsRedeeming(true);
-    setTimeout(() => {
-        setIsRedeeming(false);
+    
+    try {
+      const result = await useGiftCodeMutation.mutateAsync({ code: redeemCode });
+      
+      if (result.success) {
+        toast.success(result.message);
         setRedeemCode('');
-        alert('兑换成功！资金已到账。');
-    }, 1000);
+        refetchGiftUsages();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('使用赠金码失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  const handleRechargeSuccess = () => {
+    setIsRechargeDialogOpen(false);
+    refetchRecharges();
   };
 
   return (
@@ -176,23 +239,23 @@ export default function BillingPage() {
           
           <CardHeader className="pb-2 relative z-10">
             <CardTitle className="text-base font-medium text-primary-foreground/80 flex items-center gap-2">
-              <Wallet className="w-5 h-5" /> 账户余额 (USD)
+              <Wallet className="w-5 h-5" /> 账户余额 (CNY)
             </CardTitle>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-5xl font-bold tracking-tight mt-2">$12.50</div>
+            <div className="text-5xl font-bold tracking-tight mt-2">¥{user?.balance ?? '0.00'}</div>
             <div className="text-sm text-primary-foreground/70 mt-2 flex items-center gap-1">
               <Zap className="w-4 h-4" /> 账户状态正常
             </div>
           </CardContent>
           <CardFooter className="pt-4 relative z-10">
-             <Dialog>
+             <Dialog open={isRechargeDialogOpen} onOpenChange={setIsRechargeDialogOpen}>
                <DialogTrigger asChild>
                  <Button variant="secondary" size="lg" className="w-full font-bold shadow-sm hover:bg-white/90 text-primary">
                     <ArrowDownLeft className="w-5 h-5 mr-2" /> 立即充值
                  </Button>
                </DialogTrigger>
-               <RechargeModal />
+               <RechargeModal onSuccess={handleRechargeSuccess} />
              </Dialog>
           </CardFooter>
         </Card>
@@ -205,12 +268,12 @@ export default function BillingPage() {
                <Gift className="w-5 h-5 text-primary" /> 兑换赠金
              </CardTitle>
              <CardDescription>
-                输入您的礼品卡代码或活动充值码，金额将立即存入余额。
+                输入您的赠金码，金额将立即存入余额。
              </CardDescription>
            </CardHeader>
            <CardContent className="space-y-4">
              <div className="space-y-2">
-                <Label htmlFor="code" className="text-xs text-muted-foreground">兑换代码</Label>
+                <Label htmlFor="code" className="text-xs text-muted-foreground">赠金码</Label>
                 <div className="flex gap-3">
                     <div className="relative flex-1">
                         <Ticket className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
@@ -224,10 +287,10 @@ export default function BillingPage() {
                     </div>
                     <Button 
                         onClick={handleRedeem} 
-                        disabled={!redeemCode || isRedeeming}
+                        disabled={!redeemCode || useGiftCodeMutation.isPending}
                         className="min-w-[100px] shadow-lg shadow-primary/20"
                     >
-                        {isRedeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : '兑换'}
+                        {useGiftCodeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : '兑换'}
                     </Button>
                 </div>
              </div>
@@ -241,99 +304,82 @@ export default function BillingPage() {
 
       <Card className="border-border/50 bg-card/60 backdrop-blur-md shadow-sm">
         <CardContent className="p-6">
-          <Tabs defaultValue="transactions" className="w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <TabsList className="grid w-full sm:w-[240px] grid-cols-2">
-                <TabsTrigger value="transactions">交易明细</TabsTrigger>
-                <TabsTrigger value="recharges">充值记录</TabsTrigger>
-              </TabsList>
-              <Button variant="outline" size="sm" className="gap-2 text-xs w-full sm:w-auto">
-                <Download className="w-3.5 h-3.5" /> 导出账单 (CSV)
-              </Button>
-            </div>
+          <Tabs defaultValue="recharges" className="w-full">
+            <TabsList className="grid w-full sm:w-[240px] grid-cols-2">
+              <TabsTrigger value="recharges">充值记录</TabsTrigger>
+              <TabsTrigger value="giftcodes">赠金使用记录</TabsTrigger>
+            </TabsList>
 
-            <TabsContent value="transactions" className="mt-0">
-              <div className="rounded-md border border-border/50 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow className="border-border/50">
-                        <TableHead>交易ID</TableHead>
-                        <TableHead>时间</TableHead>
-                        <TableHead>摘要</TableHead>
-                        <TableHead>类型</TableHead>
-                        <TableHead className="text-right">金额</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.map((trx) => (
-                        <TableRow key={trx.id} className="hover:bg-muted/50 border-border/50">
-                          <TableCell className="font-mono text-xs text-muted-foreground">{trx.id}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{trx.date}</TableCell>
-                          <TableCell className="font-medium">{trx.desc}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={cn(
-                              "text-[10px] h-5 px-1.5 capitalize border-0", 
-                              trx.type === 'income' ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
-                            )}>
-                              {trx.type === 'income' ? '充值/入账' : '消费/支出'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className={cn(
-                            "text-right font-bold tabular-nums",
-                            trx.type === 'income' ? "text-green-600" : "text-foreground"
-                          )}>
-                            {trx.type === 'income' ? '+' : '-'}${trx.amount.toFixed(2)}
-                          </TableCell>
+            <TabsContent value="recharges" className="mt-6">
+              {recharges.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Wallet className="h-8 w-8 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">暂无充值记录</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">您还没有任何充值记录</p>
+                </div>
+              ) : (
+                <div className="rounded-md border border-border/50 overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow className="border-border/50">
+                          <TableHead>充值单号</TableHead>
+                          <TableHead>充值金额</TableHead>
+                          <TableHead>赠送金额</TableHead>
+                          <TableHead>实际到账</TableHead>
+                          <TableHead>支付渠道</TableHead>
+                          <TableHead>状态</TableHead>
+                          <TableHead>创建时间</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {recharges.map((rec) => (
+                          <TableRow key={rec.id} className="hover:bg-muted/50 border-border/50">
+                            <TableCell className="font-mono text-xs text-muted-foreground">{rec.rechargeNo}</TableCell>
+                            <TableCell>¥{rec.amount}</TableCell>
+                            <TableCell className="text-green-600">
+                              {Number(rec.bonusAmount) > 0 ? `+¥${rec.bonusAmount}` : '-'}
+                            </TableCell>
+                            <TableCell className="font-medium">¥{rec.finalAmount}</TableCell>
+                            <TableCell>{getChannelLabel(rec.channel)}</TableCell>
+                            <TableCell>{getStatusBadge(rec.status)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(rec.createdAt)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                </div>
+              )}
             </TabsContent>
 
-            <TabsContent value="recharges" className="mt-0">
-               <div className="rounded-md border border-border/50 overflow-hidden">
-                   <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow className="border-border/50">
-                        <TableHead>流水号</TableHead>
-                        <TableHead>充值时间</TableHead>
-                        <TableHead>支付方式</TableHead>
-                        <TableHead>状态</TableHead>
-                        <TableHead className="text-right">充值金额</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {recharges.map((rec) => (
-                        <TableRow key={rec.id} className="hover:bg-muted/50 border-border/50">
-                          <TableCell className="font-mono text-xs text-muted-foreground">{rec.id}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{rec.date}</TableCell>
-                          <TableCell className="flex items-center gap-2 text-sm">
-                             {rec.method.includes('Alipay') && <span className="text-blue-500">🟦</span>}
-                             {rec.method.includes('WeChat') && <span className="text-green-500">🟩</span>}
-                             {rec.method.includes('USDT') && <span className="text-yellow-500">🪙</span>}
-                             {rec.method.includes('Gift') && <Gift className="w-4 h-4 text-purple-500"/>}
-                             {rec.method}
-                          </TableCell>
-                          <TableCell>
-                             {rec.status === 'completed' ? (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 gap-1 text-[10px] h-5 px-1.5 border-0">
-                                   <CheckCircle2 className="w-3 h-3" /> 成功
-                                </Badge>
-                             ) : (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 gap-1 text-[10px] h-5 px-1.5 border-0">
-                                   <AlertCircle className="w-3 h-3" /> 失败
-                                </Badge>
-                             )}
-                          </TableCell>
-                          <TableCell className="text-right font-bold tabular-nums">
-                            ${rec.amount.toFixed(2)}
-                          </TableCell>
+            <TabsContent value="giftcodes" className="mt-6">
+              {giftUsages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Gift className="h-8 w-8 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">暂无使用记录</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">您还没有使用过任何赠金码</p>
+                </div>
+              ) : (
+                <div className="rounded-md border border-border/50 overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow className="border-border/50">
+                          <TableHead>赠金码</TableHead>
+                          <TableHead>赠金金额</TableHead>
+                          <TableHead>使用时间</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-               </div>
+                      </TableHeader>
+                      <TableBody>
+                        {giftUsages.map((usage) => (
+                          <TableRow key={usage.id} className="hover:bg-muted/50 border-border/50">
+                            <TableCell className="font-mono">{usage.giftCode?.code}</TableCell>
+                            <TableCell className="text-green-600 font-medium">+¥{usage.amount}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(usage.createdAt)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
