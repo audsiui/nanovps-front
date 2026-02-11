@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAccessToken, getRefreshToken, clearTokens, saveTokens } from '@/lib/token';
-import { logoutApi } from '@/lib/requests/auth';
+import { logoutApi, useMe } from '@/lib/requests/auth';
 import { AuthContext } from '@/contexts/auth-context';
 import type { User } from '@/lib/types';
 
@@ -10,9 +10,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
-  // 初始化：从 localStorage 恢复登录状态
+  // 从服务器获取最新用户信息
+  const { data: meData, refetch: refetchMe } = useMe({
+    enabled: false, // 默认不自动获取，手动控制
+  });
+
+  // 初始化：从 localStorage 恢复登录状态，然后刷新服务器数据
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       const token = getAccessToken();
       const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
 
@@ -20,6 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsedUser: User = JSON.parse(userStr);
           setUser(parsedUser);
+          // 从服务器刷新最新数据
+          await refetchMe();
         } catch {
           clearTokens();
         }
@@ -28,7 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, []);
+  }, [refetchMe]);
+
+  // 当获取到服务器用户信息时，更新本地状态
+  useEffect(() => {
+    if (meData) {
+      localStorage.setItem('user', JSON.stringify(meData));
+      setUser(meData);
+    }
+  }, [meData]);
 
   // 登录：保存 token 和用户信息
   const login = useCallback((data: { accessToken: string; refreshToken: string; expiresIn: number; user: User }) => {
@@ -61,6 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
   }, []);
 
+  // 刷新用户信息（从服务器获取最新数据）
+  const refreshUser = useCallback(() => {
+    return refetchMe();
+  }, [refetchMe]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -70,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         updateUser,
+        refreshUser,
       }}
     >
       {children}

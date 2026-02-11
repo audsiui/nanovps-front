@@ -27,7 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useMyOrders } from '@/lib/requests/orders';
+import { useMyOrders, useOrderDetail } from '@/lib/requests/orders';
 import type { Order, OrderStatus } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
@@ -65,7 +65,25 @@ const getTypeLabel = (type: string) => {
   return typeMap[type] || type;
 };
 
-function OrderDetailDialog({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderDetailDialog({ orderId, onClose }: { orderId: number; onClose: () => void }) {
+  const { data: order, isLoading } = useOrderDetail(orderId);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        加载订单详情失败
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -92,19 +110,19 @@ function OrderDetailDialog({ order, onClose }: { order: Order; onClose: () => vo
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">节点</p>
-            <p className="font-medium">{order.nodePlan?.node.name || '-'}</p>
+            <p className="font-medium">{order.node.name}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">套餐</p>
-            <p className="font-medium">{order.nodePlan?.template.name || '-'}</p>
+            <p className="font-medium">{order.planTemplate.name}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">配置</p>
+            <p className="font-medium">{order.planTemplate.cpu}核 / {order.planTemplate.ramMb}MB / {order.planTemplate.diskGb}GB</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">计费周期</p>
             <p className="font-medium">{order.billingCycle}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">购买时长</p>
-            <p className="font-medium">{order.durationMonths} 个月</p>
           </div>
         </div>
       </div>
@@ -126,6 +144,32 @@ function OrderDetailDialog({ order, onClose }: { order: Order; onClose: () => vo
           </div>
         </div>
       </div>
+
+      {order.instance && (
+        <div className="border-t pt-4">
+          <h4 className="font-medium mb-2">实例信息</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">实例名称</p>
+              <p className="font-medium">{order.instance.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">状态</p>
+              <p className="font-medium">{order.instance.status === 1 ? '运行中' : '已停止'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">到期时间</p>
+              <p className="font-medium">{formatDate(order.instance.expiresAt)}</p>
+            </div>
+            {order.node.ipv4 && (
+              <div>
+                <p className="text-sm text-muted-foreground">IP地址</p>
+                <p className="font-medium">{order.node.ipv4}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {order.paidAt && (
         <div className="border-t pt-4">
@@ -178,7 +222,7 @@ function OrderDetailDialog({ order, onClose }: { order: Order; onClose: () => vo
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
   const queryParams = {
     page: 1,
@@ -253,8 +297,8 @@ export default function OrdersPage() {
               <TableRow>
                 <TableHead>订单号</TableHead>
                 <TableHead>类型</TableHead>
-                <TableHead>节点/套餐</TableHead>
-                <TableHead>周期/时长</TableHead>
+                <TableHead>节点</TableHead>
+                <TableHead>套餐</TableHead>
                 <TableHead>金额</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>创建时间</TableHead>
@@ -268,28 +312,23 @@ export default function OrdersPage() {
                   <TableCell>{getTypeLabel(order.type)}</TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <p>{order.nodePlan?.node.name || '-'}</p>
-                      <p className="text-muted-foreground">{order.nodePlan?.template.name || '-'}</p>
+                      <p>{order.nodeName}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <p>{order.billingCycle}</p>
-                      <p className="text-muted-foreground">{order.durationMonths} 个月</p>
+                      <p>{order.planName}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
                       <p>¥{order.finalPrice}</p>
-                      {Number(order.discountAmount) > 0 && (
-                        <p className="text-muted-foreground line-through">¥{order.originalPrice}</p>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedOrder(order)}>
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedOrderId(order.id)}>
                       <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -300,13 +339,13 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+      <Dialog open={!!selectedOrderId} onOpenChange={() => setSelectedOrderId(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>订单详情</DialogTitle>
             <DialogDescription>查看订单详细信息</DialogDescription>
           </DialogHeader>
-          {selectedOrder && <OrderDetailDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} />}
+          {selectedOrderId && <OrderDetailDialog orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />}
         </DialogContent>
       </Dialog>
     </div>

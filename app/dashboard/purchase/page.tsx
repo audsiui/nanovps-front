@@ -42,11 +42,13 @@ import { useCatalog } from '@/lib/requests/catalog';
 import { useImageList } from '@/lib/requests/images';
 import { useCalculateOrder, useCreateOrder } from '@/lib/requests/orders';
 import { useValidatePromoCode } from '@/lib/requests/promo-codes';
+import { useAuth } from '@/contexts/auth-context';
 import type { CatalogBillingCycle } from '@/lib/types';
 import { toast } from 'sonner';
 
 export default function PurchasePage() {
   const router = useRouter();
+  const { user } = useAuth();
   
   // --- 数据获取 ---
   const { data: catalog, isLoading: isLoadingCatalog, error: catalogError } = useCatalog();
@@ -752,17 +754,39 @@ export default function PurchasePage() {
 
               {/* 总价与按钮 */}
               <div className="pt-2 space-y-4">
-                <div className="flex items-end justify-between">
-                  <span className="text-muted-foreground mb-1">应付总额</span>
-                  <div className="text-right">
-                    {Number(promoDiscount) > 0 && originalPrice && (
-                      <div className="text-xs text-muted-foreground line-through decoration-red-500">
-                        ¥{originalPrice}
-                      </div>
-                    )}
-                    <span className="text-3xl font-bold text-primary">¥{totalPrice}</span>
-                    <span className="text-sm text-muted-foreground ml-1">CNY</span>
+                <div className="space-y-2">
+                  <div className="flex items-end justify-between">
+                    <span className="text-muted-foreground mb-1">应付总额</span>
+                    <div className="text-right">
+                      {Number(promoDiscount) > 0 && originalPrice && (
+                        <div className="text-xs text-muted-foreground line-through decoration-red-500">
+                          ¥{originalPrice}
+                        </div>
+                      )}
+                      <span className="text-3xl font-bold text-primary">¥{totalPrice}</span>
+                      <span className="text-sm text-muted-foreground ml-1">CNY</span>
+                    </div>
                   </div>
+                  
+                  {/* 显示账户余额和购买后余额 */}
+                  <div className="flex items-end justify-between text-sm">
+                    <span className="text-muted-foreground">当前余额</span>
+                    <span className="font-medium">¥{user?.balance ?? '0.00'}</span>
+                  </div>
+                  <div className="flex items-end justify-between text-sm">
+                    <span className="text-muted-foreground">购买后余额</span>
+                    <span className={cn(
+                      "font-medium",
+                      (Number(user?.balance ?? 0) - Number(totalPrice)) >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      ¥{Math.max(0, Number(user?.balance ?? 0) - Number(totalPrice)).toFixed(2)}
+                    </span>
+                  </div>
+                  {Number(user?.balance ?? 0) < Number(totalPrice) && (
+                    <p className="text-xs text-red-500 text-right">
+                      余额不足，还差 ¥{(Number(totalPrice) - Number(user?.balance ?? 0)).toFixed(2)}
+                    </p>
+                  )}
                 </div>
                 
                 <Button 

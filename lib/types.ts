@@ -682,12 +682,58 @@ export type OrderStatus = 'pending' | 'paid' | 'processing' | 'completed' | 'fai
 /** 支付渠道 */
 export type PaymentChannel = 'alipay' | 'wechat' | 'stripe' | 'paypal' | 'balance';
 
-/** 订单 */
+/** 订单（列表用 - 简洁信息） */
 export interface Order {
   id: number;
   orderNo: string;
+  nodeName: string;
+  type: OrderType;
+  planName: string;
+  finalPrice: string;
+  status: OrderStatus;
+  createdAt: string;
+}
+
+/** 实例（详情用） */
+export interface Instance {
+  id: number;
+  name: string;
+  status: number;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  expiresAt: string;
+}
+
+/** 订单详情中的节点信息 */
+export interface OrderDetailNode {
+  id: number;
+  name: string;
+  ipv4?: string;
+  ipv6?: string;
+}
+
+/** 套餐模板（详情用） */
+export interface PlanTemplate {
+  id: number;
+  name: string;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+}
+
+/** 节点套餐（详情用） */
+export interface OrderDetailNodePlan {
+  id: number;
+  billingCycles: CatalogBillingCycle[];
+  status: number;
+}
+
+/** 订单详情（完整信息） */
+export interface OrderDetail {
+  id: number;
+  orderNo: string;
   userId: number;
-  instanceId?: number;
   nodePlanId: number;
   type: OrderType;
   status: OrderStatus;
@@ -704,17 +750,10 @@ export interface Order {
   remark?: string;
   createdAt: string;
   updatedAt: string;
-  nodePlan?: {
-    id: number;
-    node: {
-      id: number;
-      name: string;
-    };
-    template: {
-      id: number;
-      name: string;
-    };
-  };
+  node: OrderDetailNode;
+  nodePlan: OrderDetailNodePlan;
+  instance: Instance;
+  planTemplate: PlanTemplate;
 }
 
 /** 订单列表查询参数 */

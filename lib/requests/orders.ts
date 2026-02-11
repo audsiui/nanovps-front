@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api";
 import type {
   Order,
+  OrderDetail,
   OrderListQuery,
   OrderListResponse,
   CalculateOrderQuery,
@@ -71,7 +72,7 @@ export function useMyOrders(query: OrderListQuery = {}) {
  * GET /orders/detail/:id
  */
 export function useOrderDetail(id: number) {
-  return useQuery<Order>({
+  return useQuery<OrderDetail>({
     queryKey: orderKeys.detail(id),
     queryFn: () => get(`/orders/detail/${id}`),
     enabled: id > 0,

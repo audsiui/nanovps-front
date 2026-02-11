@@ -185,7 +185,7 @@ const getChannelLabel = (channel?: string) => {
 };
 
 export default function BillingPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [redeemCode, setRedeemCode] = useState('');
   const [isRechargeDialogOpen, setIsRechargeDialogOpen] = useState(false);
 
@@ -207,6 +207,7 @@ export default function BillingPage() {
         toast.success(result.message);
         setRedeemCode('');
         refetchGiftUsages();
+        refreshUser(); // 刷新用户信息，更新余额
       } else {
         toast.error(result.message);
       }
@@ -218,6 +219,7 @@ export default function BillingPage() {
   const handleRechargeSuccess = () => {
     setIsRechargeDialogOpen(false);
     refetchRecharges();
+    refreshUser(); // 刷新用户信息，更新余额
   };
 
   return (
