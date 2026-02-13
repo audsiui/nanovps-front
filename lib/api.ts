@@ -196,4 +196,9 @@ export const post = <T = unknown>(url: string, data?: unknown, config?: AxiosReq
   return api.post(url, data, config).then((res) => (res.data as ApiResponse<T>).data);
 };
 
+// 封装 DELETE 请求 - 返回 data 字段
+export const del = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  return api.delete(url, config).then((res) => (res.data as ApiResponse<T>).data);
+};
+
 export default api;

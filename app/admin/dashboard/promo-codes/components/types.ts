@@ -24,7 +24,7 @@ export const initialFormData: PromoCodeFormData = {
   value: '',
   minAmount: '',
   maxDiscount: '',
-  usageType: 'both',
+  usageType: 'purchase',
   usageLimit: undefined,
   perUserLimit: 1,
   startAt: undefined,

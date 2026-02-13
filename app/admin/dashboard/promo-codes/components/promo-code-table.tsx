@@ -95,19 +95,7 @@ export function PromoCodeTable({ promoCodes, onEdit, onRefresh }: PromoCodeTable
     return `${value}%`;
   };
 
-  // 获取使用场景标签
-  const getUsageTypeLabel = (type: string) => {
-    switch (type) {
-      case 'purchase':
-        return <Badge variant="outline">购买</Badge>;
-      case 'recharge':
-        return <Badge variant="outline">充值</Badge>;
-      case 'both':
-        return <Badge variant="outline">通用</Badge>;
-      default:
-        return null;
-    }
-  };
+  
 
   // 获取状态标签
   const getStatusBadge = (isActive: boolean, endAt?: string) => {
@@ -131,7 +119,6 @@ export function PromoCodeTable({ promoCodes, onEdit, onRefresh }: PromoCodeTable
             <TableRow>
               <TableHead>优惠码</TableHead>
               <TableHead>折扣类型</TableHead>
-              <TableHead>使用场景</TableHead>
               <TableHead>使用限制</TableHead>
               <TableHead>已用/限制</TableHead>
               <TableHead>有效期</TableHead>
@@ -142,7 +129,7 @@ export function PromoCodeTable({ promoCodes, onEdit, onRefresh }: PromoCodeTable
           <TableBody>
             {promoCodes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   暂无优惠码
                 </TableCell>
               </TableRow>
@@ -180,7 +167,6 @@ export function PromoCodeTable({ promoCodes, onEdit, onRefresh }: PromoCodeTable
                       </p>
                     )}
                   </TableCell>
-                  <TableCell>{getUsageTypeLabel(promoCode.usageType)}</TableCell>
                   <TableCell>
                     <div className="space-y-1 text-sm">
                       {promoCode.minAmount && (

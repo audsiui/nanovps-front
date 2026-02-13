@@ -436,7 +436,7 @@ export interface DeleteNodePlanRequest {
 export type PromoCodeType = 'fixed' | 'percentage';
 
 /** 优惠码使用场景 */
-export type PromoCodeUsageType = 'purchase' | 'recharge' | 'both';
+export type PromoCodeUsageType = 'purchase';
 
 /** 优惠码 */
 export interface PromoCode {
@@ -518,7 +518,6 @@ export interface PromoCodeUsage {
   promoCodeId: number;
   userId: number;
   orderId?: number;
-  rechargeId?: number;
   originalAmount: string;
   discountAmount: string;
   finalAmount: string;
@@ -550,7 +549,6 @@ export interface PromoCodeUsageResponse {
 export interface ValidatePromoCodeQuery {
   code: string;
   amount: number;
-  usageType: 'purchase' | 'recharge';
 }
 
 /** 验证优惠码响应 */
@@ -694,17 +692,6 @@ export interface Order {
   createdAt: string;
 }
 
-/** 实例（详情用） */
-export interface Instance {
-  id: number;
-  name: string;
-  status: number;
-  cpu: number;
-  ramMb: number;
-  diskGb: number;
-  expiresAt: string;
-}
-
 /** 订单详情中的节点信息 */
 export interface OrderDetailNode {
   id: number;
@@ -798,12 +785,130 @@ export interface CreateOrderRequest {
   billingCycle: string;
   durationMonths: number;
   promoCode?: string;
+  imageId: number;
 }
 
 /** 创建订单响应 */
 export interface CreateOrderResponse {
   order: Order;
-  paymentUrl?: string;
+  instanceId: number;
+  discountInfo?: {
+    promoCode: string;
+    originalAmount: number;
+    discountAmount: number;
+    finalAmount: number;
+  };
+}
+
+// ==================== 实例管理类型 ====================
+
+/** 实例状态枚举 */
+export type InstanceStatus = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** 实例状态文本映射 */
+export const InstanceStatusText: Record<number, string> = {
+  0: '创建中',
+  1: '运行中',
+  2: '已停止',
+  3: '暂停',
+  4: '异常',
+  5: '销毁中',
+  6: '已销毁',
+};
+
+/** 实例（列表用） */
+export interface Instance {
+  id: number;
+  userId: number;
+  nodeId: number;
+  nodePlanId: number;
+  imageId: number;
+  name: string;
+  hostname: string | null;
+  cpu: number;
+  ramMb: number;
+  diskGb: number;
+  trafficGb: number | null;
+  bandwidthMbps: number | null;
+  internalIp: string | null;
+  sshPort: number | null;
+  status: InstanceStatus;
+  containerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  lastStartedAt: string | null;
+  destroyedAt: string | null;
+  autoRenew: boolean;
+}
+
+/** 实例详情（包含关联信息） */
+export interface InstanceDetail extends Instance {
+  node: {
+    id: number;
+    name: string;
+    ipv4: string | null;
+    ipv6: string | null;
+    status: number;
+  };
+  image: {
+    id: number;
+    name: string;
+    imageRef: string;
+    family: string;
+  };
+}
+
+/** 实例列表响应 */
+export interface InstanceListResponse {
+  list: Instance[];
+  pagination: Pagination;
+}
+
+/** 实例实时状态 */
+export interface InstanceStatusData {
+  status: 'online' | 'offline' | 'creating';
+  instanceStatus: InstanceStatus;
+  message?: string;
+  containerId?: string;
+  containerName?: string;
+  timestamp?: number;
+  cpuPercent?: number;
+  memory?: {
+    usage: number;
+    limit: number;
+    usagePercent: number;
+  };
+  network?: {
+    rxRate: number;
+    txRate: number;
+    rxTotal: number;
+    txTotal: number;
+  };
+}
+
+/** 实例历史数据点 */
+export interface InstanceHistoryPoint {
+  timestamp: number;
+  cpuPercent: number;
+  memoryUsagePercent: number;
+  memoryUsage: number;
+  memoryLimit: number;
+  networkRxRate: number;
+  networkTxRate: number;
+  networkRxTotal: number;
+  networkTxTotal: number;
+}
+
+/** 实例历史数据响应 */
+export interface InstanceHistoryResponse {
+  list: InstanceHistoryPoint[];
+  total: number;
+}
+
+/** 实例操作响应 */
+export interface InstanceOperationResponse {
+  status: string;
 }
 
 // ==================== 充值管理类型 ====================

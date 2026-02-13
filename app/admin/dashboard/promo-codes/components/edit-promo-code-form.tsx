@@ -20,7 +20,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PromoCode } from '@/lib/types';
 import { useUpdatePromoCode } from '@/lib/requests/promo-codes';
-import { promoCodeTypeOptions, usageTypeOptions } from './data';
+import { promoCodeTypeOptions } from './data';
 
 const formSchema = z.object({
   id: z.number(),
@@ -30,7 +30,6 @@ const formSchema = z.object({
   value: z.string().min(1, '请输入优惠值'),
   minAmount: z.string().optional(),
   maxDiscount: z.string().optional(),
-  usageType: z.enum(['purchase', 'recharge', 'both']),
   usageLimit: z.number().optional(),
   perUserLimit: z.number().min(1, '每用户限制至少为1'),
   startAt: z.string().optional(),
@@ -66,7 +65,6 @@ export function EditPromoCodeForm({ promoCode, onSuccess, onCancel }: EditPromoC
       value: promoCode.value,
       minAmount: promoCode.minAmount || '',
       maxDiscount: promoCode.maxDiscount || '',
-      usageType: promoCode.usageType,
       usageLimit: promoCode.usageLimit,
       perUserLimit: promoCode.perUserLimit,
       startAt: promoCode.startAt ? new Date(promoCode.startAt).toISOString().slice(0, 16) : '',
@@ -80,7 +78,10 @@ export function EditPromoCodeForm({ promoCode, onSuccess, onCancel }: EditPromoC
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
-      await updateMutation.mutateAsync(data);
+      await updateMutation.mutateAsync({
+        ...data,
+        usageType: 'purchase',
+      });
       toast.success('优惠码更新成功');
       onSuccess();
     } catch (error) {
@@ -152,22 +153,14 @@ export function EditPromoCodeForm({ promoCode, onSuccess, onCancel }: EditPromoC
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="usageType">使用场景 *</Label>
-          <Select
-            defaultValue={promoCode.usageType}
-            onValueChange={(value) => setValue('usageType', value as 'purchase' | 'recharge' | 'both')}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {usageTypeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="minAmount">最低使用金额（可选）</Label>
+          <Input
+            id="minAmount"
+            type="number"
+            step="0.01"
+            placeholder="订单金额需大于此值"
+            {...register('minAmount')}
+          />
         </div>
       </div>
 
@@ -186,17 +179,6 @@ export function EditPromoCodeForm({ promoCode, onSuccess, onCancel }: EditPromoC
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="minAmount">最低使用金额（可选）</Label>
-          <Input
-            id="minAmount"
-            type="number"
-            step="0.01"
-            placeholder="订单金额需大于此值"
-            {...register('minAmount')}
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="usageLimit">总使用次数限制（可选）</Label>
           <Input
             id="usageLimit"
@@ -206,19 +188,19 @@ export function EditPromoCodeForm({ promoCode, onSuccess, onCancel }: EditPromoC
             {...register('usageLimit', { valueAsNumber: true })}
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="perUserLimit">每用户使用次数限制 *</Label>
-        <Input
-          id="perUserLimit"
-          type="number"
-          min={1}
-          {...register('perUserLimit', { valueAsNumber: true })}
-        />
-        {errors.perUserLimit && (
-          <p className="text-sm text-destructive">{errors.perUserLimit.message}</p>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="perUserLimit">每用户使用次数限制 *</Label>
+          <Input
+            id="perUserLimit"
+            type="number"
+            min={1}
+            {...register('perUserLimit', { valueAsNumber: true })}
+          />
+          {errors.perUserLimit && (
+            <p className="text-sm text-destructive">{errors.perUserLimit.message}</p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

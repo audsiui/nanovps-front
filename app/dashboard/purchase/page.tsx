@@ -168,7 +168,6 @@ export default function PurchasePage() {
       const result = await validatePromoCodeMutation.mutateAsync({
         code: promoCode,
         amount: selectedCycle.price,
-        usageType: 'purchase',
       });
       
       if (result.valid) {
@@ -197,21 +196,24 @@ export default function PurchasePage() {
       return;
     }
 
+    if (!selectedImageId) {
+      toast.error('请选择操作系统');
+      return;
+    }
+
     try {
       const result = await createOrderMutation.mutateAsync({
         nodePlanId: selectedPlanId,
         billingCycle: selectedCycle.cycle,
         durationMonths: selectedCycle.months,
         promoCode: appliedPromoCode || undefined,
+        imageId: selectedImageId,
       });
       
-      toast.success('订单创建成功');
+      toast.success('实例创建成功，正在部署中...');
       
-      if (result.paymentUrl) {
-        window.location.href = result.paymentUrl;
-      } else {
-        router.push('/dashboard/orders');
-      }
+      // 跳转到工作台查看实例
+      router.push('/dashboard');
     } catch (error) {
       toast.error('创建订单失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
