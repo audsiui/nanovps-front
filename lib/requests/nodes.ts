@@ -6,6 +6,8 @@ import type {
   NodeListResponse,
   CreateNodeRequest,
   UpdateNodeRequest,
+  NodeRealtimeData,
+  NodePlanStatus,
 } from "@/lib/types";
 
 // Query keys
@@ -15,6 +17,7 @@ export const nodeKeys = {
   list: (query: NodeListQuery) => [...nodeKeys.lists(), query] as const,
   details: () => [...nodeKeys.all, "detail"] as const,
   detail: (id: number) => [...nodeKeys.details(), id] as const,
+  realtime: (id: number) => [...nodeKeys.all, "realtime", id] as const,
 };
 
 /**
@@ -75,5 +78,32 @@ export function useUpdateNode() {
         queryKey: nodeKeys.detail(variables.id),
       });
     },
+  });
+}
+
+/**
+ * 获取节点实时数据（10秒轮询）
+ * GET /admin/nodes/realtime/{id}
+ */
+export function useNodeRealtime(id: number, options?: { enabled?: boolean }) {
+  return useQuery<NodeRealtimeData>({
+    queryKey: nodeKeys.realtime(id),
+    queryFn: () => get(`/admin/nodes/realtime/${id}`),
+    enabled: options?.enabled !== false && id > 0,
+    refetchInterval: 10 * 1000,
+    staleTime: 5 * 1000,
+  });
+}
+
+/**
+ * 获取套餐节点状态（购买前检查）
+ * GET /catalog/plan/{id}/status
+ */
+export function useNodePlanStatus(nodePlanId: number, options?: { enabled?: boolean }) {
+  return useQuery<NodePlanStatus>({
+    queryKey: ["nodePlanStatus", nodePlanId],
+    queryFn: () => get(`/catalog/plan/${nodePlanId}/status`),
+    enabled: options?.enabled !== false && nodePlanId > 0,
+    staleTime: 30 * 1000,
   });
 }

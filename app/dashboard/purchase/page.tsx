@@ -16,6 +16,16 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Check,
   Cpu,
   Globe,
@@ -27,6 +37,7 @@ import {
   Zap,
   CreditCard,
   Wifi,
+  WifiOff,
   Terminal,
   Lock,
   Dice5,
@@ -36,12 +47,14 @@ import {
   MapPin,
   Package,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCatalog } from '@/lib/requests/catalog';
 import { useImageList } from '@/lib/requests/images';
 import { useCalculateOrder, useCreateOrder } from '@/lib/requests/orders';
 import { useValidatePromoCode } from '@/lib/requests/promo-codes';
+import { useNodePlanStatus } from '@/lib/requests/nodes';
 import { useAuth } from '@/contexts/auth-context';
 import type { CatalogBillingCycle } from '@/lib/types';
 import { toast } from 'sonner';
@@ -82,6 +95,15 @@ export default function PurchasePage() {
   // 计算结果
   const [calculatedPrice, setCalculatedPrice] = useState<string | null>(null);
   const [originalPrice, setOriginalPrice] = useState<string | null>(null);
+
+  // 节点离线警告
+  const [showOfflineWarning, setShowOfflineWarning] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(false);
+
+  // 查询节点状态
+  const { data: nodePlanStatus, refetch: refetchNodePlanStatus } = useNodePlanStatus(selectedPlanId || 0, {
+    enabled: false,
+  });
 
   // --- 计算属性 ---
   const regions = useMemo(() => catalog || [], [catalog]);
@@ -201,6 +223,21 @@ export default function PurchasePage() {
       return;
     }
 
+    // 先检查节点状态
+    if (!pendingOrder) {
+      try {
+        const statusResult = await refetchNodePlanStatus();
+        const status = statusResult.data;
+        
+        if (status && !status.online) {
+          setShowOfflineWarning(true);
+          return;
+        }
+      } catch (error) {
+        console.error('检查节点状态失败:', error);
+      }
+    }
+
     try {
       const result = await createOrderMutation.mutateAsync({
         nodePlanId: selectedPlanId,
@@ -212,11 +249,18 @@ export default function PurchasePage() {
       
       toast.success('实例创建成功，正在部署中...');
       
-      // 跳转到工作台查看实例
       router.push('/dashboard');
     } catch (error) {
       toast.error('创建订单失败：' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setPendingOrder(false);
     }
+  };
+
+  const handleConfirmOfflinePurchase = () => {
+    setShowOfflineWarning(false);
+    setPendingOrder(true);
+    handleCreateOrder();
   };
 
   const handleRegionChange = (regionId: number) => {
@@ -823,6 +867,40 @@ export default function PurchasePage() {
         </div>
 
       </div>
+
+      {/* 节点离线警告弹窗 */}
+      <AlertDialog open={showOfflineWarning} onOpenChange={setShowOfflineWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              节点离线提醒
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>
+                您选择的节点 <strong>{nodePlanStatus?.nodeName || '该节点'}</strong> 当前处于离线状态。
+              </p>
+              <p className="text-muted-foreground">
+                您仍然可以购买此套餐，但容器将在节点上线后自动创建。这可能需要等待一段时间。
+              </p>
+              <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg text-sm">
+                <WifiOff className="h-4 w-4 text-yellow-600" />
+                <span className="text-yellow-700 dark:text-yellow-400">
+                  节点上线后，系统将自动为您创建实例
+                </span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowOfflineWarning(false)}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOfflinePurchase}>
+              确认购买
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

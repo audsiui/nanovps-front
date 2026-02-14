@@ -13,6 +13,8 @@ import {
   Clock,
   Eye,
   Package,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -162,7 +164,20 @@ export function ServerTable({
                     <span>{formatLastHeartbeat(node.lastHeartbeat)}</span>
                   </div>
                 </TableCell>
-                <TableCell>{getStatusBadge(node.status)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(node.status)}
+                    {node.isOnline ? (
+                      <div className="flex items-center gap-1 text-xs text-green-500" title="Agent 在线">
+                        <Wifi className="h-3 w-3" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground" title="Agent 离线">
+                        <WifiOff className="h-3 w-3" />
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

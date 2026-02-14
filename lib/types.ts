@@ -177,6 +177,8 @@ export interface Node {
   regionId: number;
   createdAt: string;
   updatedAt: string;
+  /** WebSocket 连接状态（Agent 在线） */
+  isOnline?: boolean;
 }
 
 /** 节点列表查询参数 */
@@ -960,4 +962,72 @@ export interface CreateRechargeRequest {
 export interface CreateRechargeResponse {
   recharge: Recharge;
   paymentUrl?: string;
+}
+
+// ==================== 节点实时数据类型 ====================
+
+/** 节点主机实时数据 */
+export interface NodeRealtimeHost {
+  uptime: number;
+  cpu: {
+    cores: number;
+    usagePercent: number;
+  };
+  memory: {
+    total: number;
+    used: number;
+    usagePercent: number;
+  };
+  network: {
+    rxRate: number;
+    txRate: number;
+    rxTotal: number;
+    txTotal: number;
+  };
+  disks: Array<{
+    fs: string;
+    type: string;
+    size: number;
+    used: number;
+    usePercent: number;
+  }>;
+}
+
+/** 容器实时数据 */
+export interface NodeRealtimeContainer {
+  id: string;
+  name: string;
+  cpuPercent: number;
+  memory: {
+    usage: number;
+    limit: number;
+    usagePercent: number;
+  };
+  network: {
+    rxRate: number;
+    txRate: number;
+    rxTotal: number;
+    txTotal: number;
+  };
+  timestamp: number;
+}
+
+/** 节点实时数据响应 */
+export interface NodeRealtimeData {
+  nodeId: number;
+  nodeName: string;
+  isOnline: boolean;
+  timestamp: number | null;
+  host: NodeRealtimeHost | null;
+  containers: NodeRealtimeContainer[];
+}
+
+// ==================== 套餐节点状态类型 ====================
+
+/** 套餐节点状态 */
+export interface NodePlanStatus {
+  online: boolean;
+  nodeId: number;
+  nodeName: string;
+  message?: string;
 }
