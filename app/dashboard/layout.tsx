@@ -14,6 +14,7 @@ import {
   Menu,
   LogOut,
   ShoppingCart,
+  Shield,
 } from 'lucide-react';
 import {
   Sheet,
@@ -166,9 +167,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        {user?.role === 'admin' && (
+                            <Link href="/admin/dashboard">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-primary"
+                                >
+                                    <Shield className="h-4 w-4" />
+                                    <span className="text-sm">进入后台</span>
+                                </Button>
+                            </Link>
+                        )}
 
-                    <div className="hidden sm:block">
+                        <div className="hidden sm:block">
                         <ModeToggle />
                     </div>
 
@@ -200,6 +213,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                            <ModeToggle />
                         </div>
                         <DropdownMenuSeparator className="sm:hidden"/>
+
+                        {user?.role === 'admin' && (
+                            <DropdownMenuItem asChild>
+                                <Link href="/admin/dashboard" className="flex items-center cursor-pointer">
+                                    <Shield className="mr-2 h-4 w-4" />
+                                    <span>进入后台</span>
+                                </Link>
+                            </DropdownMenuItem>
+                        )}
 
                         <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">

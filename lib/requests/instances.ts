@@ -158,3 +158,24 @@ export function useDeleteInstance() {
     },
   });
 }
+
+/**
+ * 重装实例
+ * POST /instances/:id/reinstall
+ */
+export function useReinstallInstance() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    InstanceOperationResponse,
+    Error,
+    { id: number; imageId?: number; password?: string }
+  >({
+    mutationFn: ({ id, imageId, password }) =>
+      post(`/instances/${id}/reinstall`, { imageId, password }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: instanceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: instanceKeys.status(id) });
+    },
+  });
+}

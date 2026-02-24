@@ -16,7 +16,19 @@ export const imageKeys = {
   list: (query: ImageListQuery) => [...imageKeys.lists(), query] as const,
   details: () => [...imageKeys.all, "detail"] as const,
   detail: (id: number) => [...imageKeys.details(), id] as const,
+  available: () => [...imageKeys.all, "available"] as const,
 };
+
+/**
+ * 获取可用镜像列表（用户端）
+ * GET /images/available
+ */
+export function useAvailableImages() {
+  return useQuery<ImageListResponse>({
+    queryKey: imageKeys.available(),
+    queryFn: () => get("/images/available"),
+  });
+}
 
 /**
  * 获取镜像列表

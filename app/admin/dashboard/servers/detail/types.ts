@@ -21,13 +21,10 @@ export interface ContainerInstance {
   cpuPercent: number;
   memoryUsedMb: number;
   memoryLimitMb: number;
-  diskUsedGb: number;
-  diskLimitGb: number;
   networkUpMbps: number;
   networkDownMbps: number;
   trafficInGb: number;
   trafficOutGb: number;
-  // 48小时历史数据
   historyData: MetricPoint[];
 }
 

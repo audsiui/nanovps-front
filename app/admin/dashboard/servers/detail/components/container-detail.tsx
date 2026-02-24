@@ -80,7 +80,7 @@ export function ContainerDetail({ container }: ContainerDetailProps) {
       {expanded && container.status === 'running' && (
         <div className="border-t bg-muted/20">
           {/* 详细指标 */}
-          <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 grid grid-cols-3 md:grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-muted-foreground mb-1">CPU 使用率</p>
               <div className="flex items-center gap-2">
@@ -101,21 +101,6 @@ export function ContainerDetail({ container }: ContainerDetailProps) {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {container.memoryUsedMb} / {container.memoryLimitMb} MB
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">硬盘使用</p>
-              <div className="flex items-center gap-2">
-                <Progress
-                  value={(container.diskUsedGb / container.diskLimitGb) * 100}
-                  className="h-2 flex-1"
-                />
-                <span className="font-medium text-sm">
-                  {((container.diskUsedGb / container.diskLimitGb) * 100).toFixed(1)}%
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {container.diskUsedGb} / {container.diskLimitGb} GB
               </p>
             </div>
             <div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Loader2,
   Terminal,
+  RotateCw as ReinstallIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -39,6 +40,7 @@ import {
 } from '@/lib/requests/instances';
 import { InstanceStatusText } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ReinstallDialog } from './components/reinstall-dialog';
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) {
@@ -73,9 +75,13 @@ function getStatusBadgeClass(status: number): string {
   }
 }
 
+import { useState } from 'react';
+
 export default function ServerDetailPageClient() {
   const params = useSearchParams();
   const instanceId = Number(params.get('id'));
+
+  const [showReinstallDialog, setShowReinstallDialog] = useState(false);
 
   const { data: instance, isLoading: isLoadingInstance, error: instanceError } = useInstanceDetail(instanceId);
   const { data: statusData, isLoading: isLoadingStatus } = useInstanceStatus(instanceId, { refetchInterval: 15000 });
@@ -450,6 +456,15 @@ export default function ServerDetailPageClient() {
                   {restartMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
                   重启
                 </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 justify-start col-span-2 sm:col-span-3"
+                  disabled={isCreating}
+                  onClick={() => setShowReinstallDialog(true)}
+                >
+                  <ReinstallIcon className="h-4 w-4" />
+                  重装系统
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -519,6 +534,14 @@ export default function ServerDetailPageClient() {
           </Card>
         </div>
       </div>
+
+      {instance && (
+        <ReinstallDialog
+          instance={instance}
+          open={showReinstallDialog}
+          onOpenChange={setShowReinstallDialog}
+        />
+      )}
     </div>
   );
 }

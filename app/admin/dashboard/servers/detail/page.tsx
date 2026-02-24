@@ -87,7 +87,12 @@ export default function ServerDetailPage() {
   }
 
   const memoryPercent = realtime?.host?.memory?.usagePercent ?? 0;
-  const diskPercent = realtime?.host?.disks?.[0]?.usePercent ?? 0;
+  const diskPercent = realtime?.host?.disks && realtime.host.disks.length > 0 
+    ? realtime.host.disks[0].usePercent ?? 0 
+    : 0;
+  const firstDisk = realtime?.host?.disks && realtime.host.disks.length > 0 
+    ? realtime.host.disks[0] 
+    : null;
 
   return (
     <div className="space-y-6">
@@ -124,12 +129,12 @@ export default function ServerDetailPage() {
             </p>
           </div>
         </div>
-        {realtime?.timestamp && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            最后更新: {new Date(realtime.timestamp * 1000).toLocaleTimeString()}
-          </div>
-        )}
+          {realtime?.timestamp && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              最后更新：{new Date(realtime.timestamp).toLocaleTimeString()}
+            </div>
+          )}
       </div>
 
       <Card>
@@ -221,10 +226,12 @@ export default function ServerDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{diskPercent.toFixed(1)}%</div>
-              {realtime.host.disks[0] && (
+              {firstDisk ? (
                 <p className="text-xs text-muted-foreground">
-                  {formatBytes(realtime.host.disks[0].used)} / {formatBytes(realtime.host.disks[0].size)}
+                  {formatBytes(firstDisk.used)} / {formatBytes(firstDisk.size)}
                 </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">暂无磁盘数据</p>
               )}
               <Progress value={diskPercent} className="h-2 mt-2" />
             </CardContent>
@@ -306,8 +313,6 @@ export default function ServerDetailPage() {
                         cpuPercent: container.cpuPercent,
                         memoryUsedMb: Math.round(container.memory.usage / (1024 * 1024)),
                         memoryLimitMb: Math.round(container.memory.limit / (1024 * 1024)),
-                        diskUsedGb: 0,
-                        diskLimitGb: 0,
                         networkUpMbps: (container.network.txRate * 8) / (1024 * 1024),
                         networkDownMbps: (container.network.rxRate * 8) / (1024 * 1024),
                         trafficInGb: container.network.rxTotal / (1024 * 1024 * 1024),
