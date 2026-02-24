@@ -168,19 +168,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 </div>
 
                     <div className="flex items-center gap-2 sm:gap-4">
-                        {user?.role === 'admin' && (
-                            <Link href="/admin/dashboard">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-primary"
-                                >
-                                    <Shield className="h-4 w-4" />
-                                    <span className="text-sm">进入后台</span>
-                                </Button>
-                            </Link>
-                        )}
-
                         <div className="hidden sm:block">
                         <ModeToggle />
                     </div>
