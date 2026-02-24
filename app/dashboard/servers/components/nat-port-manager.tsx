@@ -32,34 +32,80 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useNatPorts, useCreateNatPort, useDeleteNatPort } from '@/lib/requests/nat-ports';
+import { useNatPorts, useCreateNatPort, useDeleteNatPort, useValidatePort } from '@/lib/requests/nat-ports';
 import { toast } from 'sonner';
 import type { InstanceDetail } from '@/lib/types';
+import { useEffect } from 'react';
 
 interface NatPortManagerProps {
   instance: InstanceDetail;
 }
 
-const NatPortStatusMap = {
-  0: { label: '禁用', variant: 'secondary' as const },
-  1: { label: '启用', variant: 'default' as const },
-  2: { label: '同步中', variant: 'outline' as const },
-  3: { label: '失败', variant: 'destructive' as const },
-};
-
 export function NatPortManager({ instance }: NatPortManagerProps) {
   const [open, setOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-  const [protocol, setProtocol] = useState<'tcp' | 'udp'>('tcp');
+  const [protocol, setProtocol] = useState<'tcp' | 'udp' | 'both'>('tcp');
   const [internalPort, setInternalPort] = useState('');
   const [externalPort, setExternalPort] = useState('');
   const [description, setDescription] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const { data: portsData, isLoading } = useNatPorts(instance.id);
   const createMutation = useCreateNatPort();
   const deleteMutation = useDeleteNatPort();
+  const validateMutation = useValidatePort();
 
   const ports = portsData?.list || [];
+
+  // 实时校验外部端口
+  useEffect(() => {
+    if (!externalPort || !open) {
+      setValidationError('');
+      return;
+    }
+
+    const extPort = Number(externalPort);
+    if (extPort < 10000 || extPort > 50000) {
+      setValidationError('外网端口必须在 10000-50000 之间');
+      return;
+    }
+
+    setIsValidating(true);
+    const timer = setTimeout(async () => {
+      try {
+        // 如果是 both，需要检查两个端口
+        const protocols: Array<'tcp' | 'udp'> = protocol === 'both' ? ['tcp', 'udp'] : [protocol as 'tcp' | 'udp'];
+        let hasError = false;
+        let errorMessage = '';
+        
+        for (const p of protocols) {
+          const result = await validateMutation.mutateAsync({
+            instanceId: instance.id,
+            externalPort: extPort,
+            protocol: p,
+          });
+          if (!result.available) {
+            hasError = true;
+            errorMessage = `${p.toUpperCase()} 端口 ${extPort} ${result.message}`;
+            break;
+          }
+        }
+        
+        if (hasError) {
+          setValidationError(errorMessage);
+        } else {
+          setValidationError('');
+        }
+      } catch (error: any) {
+        setValidationError(error.message || '校验失败');
+      } finally {
+        setIsValidating(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [externalPort, protocol, instance.id, open]);
 
   const handleCreate = async () => {
     if (!internalPort || !externalPort) {
@@ -74,24 +120,35 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
       toast.error('内网端口必须在 1-65535 之间');
       return;
     }
-    if (extPort < 1 || extPort > 65535) {
-      toast.error('外网端口必须在 1-65535 之间');
+    if (extPort < 10000 || extPort > 50000) {
+      toast.error('外网端口必须在 10000-50000 之间');
+      return;
+    }
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     try {
-      await createMutation.mutateAsync({
-        instanceId: instance.id,
-        protocol,
-        internalPort: intPort,
-        externalPort: extPort,
-        description: description || undefined,
-      });
-      toast.success('端口映射创建成功');
+      // 如果是 both，创建两个端口映射
+      const protocols: Array<'tcp' | 'udp'> = protocol === 'both' ? ['tcp', 'udp'] : [protocol as 'tcp' | 'udp'];
+      
+      for (const p of protocols) {
+        await createMutation.mutateAsync({
+          instanceId: instance.id,
+          protocol: p,
+          internalPort: intPort,
+          externalPort: extPort,
+          description: description || undefined,
+        });
+      }
+      
+      toast.success(protocol === 'both' ? 'TCP+UDP 端口映射创建成功' : '端口映射创建成功');
       setOpen(false);
       setInternalPort('');
       setExternalPort('');
       setDescription('');
+      setValidationError('');
     } catch (error: any) {
       toast.error(error.message || '创建失败');
     }
@@ -135,13 +192,14 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label>协议类型</Label>
-                  <Select value={protocol} onValueChange={(v) => setProtocol(v as 'tcp' | 'udp')}>
+                  <Select value={protocol} onValueChange={(v) => setProtocol(v as 'tcp' | 'udp' | 'both')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
                       <SelectItem value="udp">UDP</SelectItem>
+                      <SelectItem value="both">TCP + UDP</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -162,12 +220,30 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
                     <Label>外网端口</Label>
                     <Input
                       type="number"
-                      placeholder="如：8080"
+                      placeholder="10000-50000"
                       value={externalPort}
                       onChange={(e) => setExternalPort(e.target.value)}
-                      min={1}
-                      max={65535}
+                      min={10000}
+                      max={50000}
                     />
+                    {isValidating && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        正在校验...
+                      </p>
+                    )}
+                    {validationError && (
+                      <p className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationError}
+                      </p>
+                    )}
+                    {!isValidating && !validationError && externalPort && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        端口可用
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -207,7 +283,6 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
             {ports.length > 0 ? (
               <div className="space-y-2">
                 {ports.map((port) => {
-                  const status = NatPortStatusMap[port.status];
                   const isSSH = port.description === 'SSH';
                   return (
                     <div
@@ -215,21 +290,12 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
                       className="p-3 border rounded-lg flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3 flex-1">
-                        {port.status === 3 ? (
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                        ) : (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        )}
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
                         <div>
                           <div className="font-medium flex items-center gap-2">
                             {port.description || '未命名'}
                             {isSSH && (
                               <Badge variant="secondary" className="text-xs">SSH</Badge>
-                            )}
-                            {port.syncError && (
-                              <span className="text-xs text-red-600" title={port.syncError}>
-                                ({port.syncError})
-                              </span>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
@@ -238,17 +304,14 @@ export function NatPortManager({ instance }: NatPortManagerProps) {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setDeleteConfirm(port.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteConfirm(port.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   );
                 })}

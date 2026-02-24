@@ -155,10 +155,8 @@ function InstanceCard({ instance }: { instance: Instance }) {
             </div>
 
             <div className="flex items-center justify-between sm:justify-start gap-4">
-              <div className="text-sm">
-                <span className="font-bold text-foreground">
-                  {instance.sshPort ? `:${instance.sshPort}` : '创建中'}
-                </span>
+              <div className="text-sm text-muted-foreground">
+                查看连接信息
               </div>
               <div className={cn(
                 "text-xs flex items-center gap-1",

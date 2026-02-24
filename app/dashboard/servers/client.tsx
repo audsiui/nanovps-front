@@ -207,80 +207,45 @@ export default function ServerDetailPageClient() {
                   <span>实例创建中，请稍候...</span>
                 </div>
               ) : (
-                <>
-                  <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
-                    <p className="text-sm text-muted-foreground mb-2">SSH 连接命令</p>
-                    <code className="text-sm font-mono bg-background px-3 py-2 rounded block">
-                      ssh root@{instance.node?.ipv4 || 'N/A'} -p {instance.sshPort || 'N/A'}
-                    </code>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <p className="text-sm text-muted-foreground">NAT IP (公网)</p>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded">
-                          {instance.node?.ipv4 || 'N/A'}
-                        </code>
-                        {instance.node?.ipv4 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => copyToClipboard(instance.node!.ipv4!)}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-sm text-muted-foreground">SSH 端口</p>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded">
-                          {instance.sshPort || 'N/A'}
-                        </code>
-                        {instance.sshPort && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => copyToClipboard(String(instance.sshPort))}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-sm text-muted-foreground">内网 IP</p>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded">
-                          {instance.internalIp || 'N/A'}
-                        </code>
-                        {instance.internalIp && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => copyToClipboard(instance.internalIp!)}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-sm text-muted-foreground">节点</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground">NAT IP (公网)</p>
+                    <div className="flex items-center gap-2">
                       <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded">
-                        {instance.node?.name || 'N/A'}
+                        {instance.node?.ipv4 || 'N/A'}
                       </code>
+                      {instance.node?.ipv4 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => copyToClipboard(instance.node!.ipv4!)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </>
+
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground">内网 IP</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded">
+                        {instance.internalIp || 'N/A'}
+                      </code>
+                      {instance.internalIp && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => copyToClipboard(instance.internalIp!)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

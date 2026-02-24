@@ -24,6 +24,26 @@ export function useNatPorts(instanceId: number) {
 }
 
 /**
+ * 校验端口是否可用
+ */
+export function useValidatePort() {
+  return useMutation<
+    { available: boolean; message: string },
+    Error,
+    { instanceId: number; externalPort: number; protocol: 'tcp' | 'udp' }
+  >({
+    mutationFn: (params) => {
+      const searchParams = new URLSearchParams({
+        instanceId: String(params.instanceId),
+        externalPort: String(params.externalPort),
+        protocol: params.protocol,
+      });
+      return get(`/nat-ports/validate?${searchParams}`);
+    },
+  });
+}
+
+/**
  * 创建端口映射
  */
 export function useCreateNatPort() {
