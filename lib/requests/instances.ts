@@ -169,7 +169,7 @@ export function useReinstallInstance() {
   return useMutation<
     InstanceOperationResponse,
     Error,
-    { id: number; imageId?: number; password?: string }
+    { id: number; imageId: number; password?: string }
   >({
     mutationFn: ({ id, imageId, password }) =>
       post(`/instances/${id}/reinstall`, { imageId, password }),

@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, RotateCw, RefreshCw, Lock } from 'lucide-react';
+import { Loader2, RotateCw, RefreshCw } from 'lucide-react';
 import { useAvailableImages } from '@/lib/requests/images';
 import { useReinstallInstance } from '@/lib/requests/instances';
 import type { InstanceDetail } from '@/lib/types';
@@ -33,14 +33,11 @@ interface ReinstallDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type ReinstallMode = 'reinstall' | 'reset-password';
-
 export function ReinstallDialog({
   instance,
   open,
   onOpenChange,
 }: ReinstallDialogProps) {
-  const [mode, setMode] = useState<ReinstallMode>('reinstall');
   const [selectedImageId, setSelectedImageId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -49,11 +46,9 @@ export function ReinstallDialog({
   const reinstallMutation = useReinstallInstance();
 
   const handleReinstall = async () => {
-    if (mode === 'reinstall') {
-      if (!selectedImageId) {
-        toast.error('请选择要重装的镜像');
-        return;
-      }
+    if (!selectedImageId) {
+      toast.error('请选择要重装的镜像');
+      return;
     }
 
     if (password) {
@@ -70,7 +65,7 @@ export function ReinstallDialog({
     try {
       await reinstallMutation.mutateAsync({
         id: instance.id,
-        imageId: mode === 'reinstall' ? Number(selectedImageId) : undefined,
+        imageId: Number(selectedImageId),
         password: password || undefined,
       });
       toast.success('实例重装成功');
@@ -88,7 +83,6 @@ export function ReinstallDialog({
       setPassword('');
       setConfirmPassword('');
       setSelectedImageId('');
-      setMode('reinstall');
     }
     onOpenChange(isOpen);
   };
@@ -116,22 +110,44 @@ export function ReinstallDialog({
         </AlertDialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* 重装模式选择 */}
+          {/* 镜像选择 */}
           <div className="space-y-2">
-            <Label>重装模式</Label>
-            <Select
-              value={mode}
-              onValueChange={(value) => setMode(value as ReinstallMode)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="reinstall">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4" />
-                    重装系统
-                  </div>
+            <Label>选择镜像</Label>
+            {isLoadingImages ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>加载中...</span>
+              </div>
+            ) : (
+              <Select
+                value={selectedImageId || currentImageId}
+                onValueChange={setSelectedImageId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择镜像" />
+                </SelectTrigger>
+                <SelectContent>
+                  {imagesData?.list?.map((image) => (
+                    <SelectItem key={image.id} value={image.id.toString()}>
+                      {image.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* 密码输入 */}
+          <div className="space-y-2">
+            <Label htmlFor="password">新密码 (可选)</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="留空则自动生成"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
                 </SelectItem>
                 <SelectItem value="reset-password">
                   <div className="flex items-center gap-2">
