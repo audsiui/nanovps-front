@@ -40,6 +40,7 @@ import {
 } from '@/lib/requests/instances';
 import { InstanceStatusText } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { NatPortManager } from './components/nat-port-manager';
 import { ReinstallDialog } from './components/reinstall-dialog';
 
 function formatBytes(bytes: number): string {
@@ -419,6 +420,16 @@ export default function ServerDetailPageClient() {
                   )}
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* NAT Port Mapping */}
+          <Card className="border-border/50 bg-card/60 backdrop-blur-md">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">网络配置</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NatPortManager instance={instance} />
             </CardContent>
           </Card>
 

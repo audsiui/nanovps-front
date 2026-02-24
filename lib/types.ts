@@ -913,6 +913,27 @@ export interface InstanceOperationResponse {
   status: string;
 }
 
+// ==================== NAT 端口映射类型 ====================
+
+/** NAT 端口映射状态 */
+export type NatPortStatus = 0 | 1 | 2 | 3;
+
+/** NAT 端口映射 */
+export interface NatPortMapping {
+  id: number;
+  instanceId: number;
+  nodeId: number;
+  protocol: 'tcp' | 'udp';
+  internalPort: number;
+  externalPort: number;
+  description?: string;
+  status: NatPortStatus;
+  lastSyncedAt?: string;
+  syncError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== 充值管理类型 ====================
 
 /** 充值状态 */
