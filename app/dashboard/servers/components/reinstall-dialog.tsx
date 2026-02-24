@@ -38,7 +38,7 @@ export function ReinstallDialog({
   open,
   onOpenChange,
 }: ReinstallDialogProps) {
-  const [selectedImageId, setSelectedImageId] = useState<string>('');
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -46,7 +46,8 @@ export function ReinstallDialog({
   const reinstallMutation = useReinstallInstance();
 
   const handleReinstall = async () => {
-    if (!selectedImageId) {
+    const imageId = selectedImageId || currentImageId;
+    if (!imageId) {
       toast.error('请选择要重装的镜像');
       return;
     }
@@ -65,14 +66,14 @@ export function ReinstallDialog({
     try {
       await reinstallMutation.mutateAsync({
         id: instance.id,
-        imageId: Number(selectedImageId),
+        imageId: Number(imageId),
         password: password || undefined,
       });
       toast.success('实例重装成功');
       onOpenChange(false);
       setPassword('');
       setConfirmPassword('');
-      setSelectedImageId('');
+      setSelectedImageId(null);
     } catch (error: any) {
       toast.error(error.message || '重装失败');
     }
@@ -82,7 +83,7 @@ export function ReinstallDialog({
     if (!isOpen) {
       setPassword('');
       setConfirmPassword('');
-      setSelectedImageId('');
+      setSelectedImageId(null);
     }
     onOpenChange(isOpen);
   };
@@ -121,7 +122,9 @@ export function ReinstallDialog({
             ) : (
               <Select
                 value={selectedImageId || currentImageId}
-                onValueChange={setSelectedImageId}
+                onValueChange={(value) => {
+                  setSelectedImageId(value);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择镜像" />
